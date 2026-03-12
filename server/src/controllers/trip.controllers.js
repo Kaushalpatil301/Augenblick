@@ -2,6 +2,7 @@ import { Trip } from "../models/trip.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import Message from "../models/Message.js";
 
 const createTrip = asyncHandler(async (req, res) => {
   const { name, destination, startDate, endDate, budget } = req.body;
@@ -159,6 +160,24 @@ const respondToTripInvitation = asyncHandler(async (req, res) => {
     );
 });
 
+const getTripMessages = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) {
+    throw new ApiError(404, "Trip not found or you are not a member");
+  }
+
+  const messages = await Message.find({ tripId })
+    .sort({ createdAt: 1 })
+    .limit(50);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, messages, "Messages fetched successfully"));
+});
+
 export {
   createTrip,
   getUserTrips,
@@ -167,4 +186,5 @@ export {
   inviteToTrip,
   getTripInvitations,
   respondToTripInvitation,
+  getTripMessages,
 };

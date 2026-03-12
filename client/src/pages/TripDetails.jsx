@@ -31,6 +31,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
+import TripChat from "../components/TripChat";
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
@@ -194,7 +195,7 @@ export default function TripDetails() {
               </div>
             </div>
           </div>
-          
+
           <div className="mt-6 flex items-center gap-2 pt-4 border-t border-white/20">
             <Users size={16} />
             <span className="text-sm font-medium">Members:</span>
@@ -210,111 +211,119 @@ export default function TripDetails() {
         </CardContent>
       </Card>
 
-      {/* Planning Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Attractions */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Camera className="text-pink-500" size={20} /> Attractions & Destinations
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowAddForm('attractions')}>
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.attractions.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No attractions added yet</p>
-            ) : (
-              trip.attractions.map((attr, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <p className="font-semibold text-sm">{attr.name}</p>
-                  <p className="text-xs text-gray-500">{attr.location}</p>
-                  {attr.date && <p className="text-[10px] text-indigo-600 mt-1">{formatDate(attr.date)}</p>}
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+      {/* Content Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Planning Sections */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Attractions */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Camera className="text-pink-500" size={20} /> Attractions & Destinations
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setShowAddForm('attractions')}>
+                <Plus size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {trip.attractions.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No attractions added yet</p>
+              ) : (
+                trip.attractions.map((attr, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <p className="font-semibold text-sm">{attr.name}</p>
+                    <p className="text-xs text-gray-500">{attr.location}</p>
+                    {attr.date && <p className="text-[10px] text-indigo-600 mt-1">{formatDate(attr.date)}</p>}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Accommodations */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Hotel className="text-blue-500" size={20} /> Accommodations
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowAddForm('accommodations')}>
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.accommodations.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No accommodations added yet</p>
-            ) : (
-              trip.accommodations.map((acc, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <p className="font-semibold text-sm">{acc.name}</p>
-                  <p className="text-xs text-gray-500">{acc.address}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">
-                    {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+          {/* Accommodations */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Hotel className="text-blue-500" size={20} /> Accommodations
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setShowAddForm('accommodations')}>
+                <Plus size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {trip.accommodations.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No accommodations added yet</p>
+              ) : (
+                trip.accommodations.map((acc, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <p className="font-semibold text-sm">{acc.name}</p>
+                    <p className="text-xs text-gray-500">{acc.address}</p>
+                    <p className="text-[10px] text-indigo-600 mt-1">
+                      {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Transport */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Plane className="text-green-500" size={20} /> Transport
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowAddForm('transport')}>
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.transport.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No transport details added yet</p>
-            ) : (
-              trip.transport.map((trans, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <Badge variant="secondary" className="mb-1 text-[10px] h-4">{trans.type}</Badge>
-                  <p className="text-sm font-medium">{trans.details}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">
-                    Dep: {formatDateTime(trans.departureTime)} | Arr: {formatDateTime(trans.arrivalTime)}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+          {/* Transport */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Plane className="text-green-500" size={20} /> Transport
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setShowAddForm('transport')}>
+                <Plus size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {trip.transport.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No transport details added yet</p>
+              ) : (
+                trip.transport.map((trans, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <Badge variant="secondary" className="mb-1 text-[10px] h-4">{trans.type}</Badge>
+                    <p className="text-sm font-medium">{trans.details}</p>
+                    <p className="text-[10px] text-indigo-600 mt-1">
+                      Dep: {formatDateTime(trans.departureTime)} | Arr: {formatDateTime(trans.arrivalTime)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Dining */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Utensils className="text-orange-500" size={20} /> Dining Options
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowAddForm('dining')}>
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.dining.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No dining options added yet</p>
-            ) : (
-              trip.dining.map((dine, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <p className="font-semibold text-sm">{dine.restaurantName}</p>
-                  <p className="text-xs text-gray-500">{dine.cuisine}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">{formatDateTime(dine.dateTime)}</p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+          {/* Dining */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Utensils className="text-orange-500" size={20} /> Dining Options
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setShowAddForm('dining')}>
+                <Plus size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {trip.dining.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No dining options added yet</p>
+              ) : (
+                trip.dining.map((dine, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <p className="font-semibold text-sm">{dine.restaurantName}</p>
+                    <p className="text-xs text-gray-500">{dine.cuisine}</p>
+                    <p className="text-[10px] text-indigo-600 mt-1">{formatDateTime(dine.dateTime)}</p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chat Sidebar */}
+        <div className="lg:col-span-1">
+          <TripChat tripId={trip._id} members={trip.members} />
+        </div>
       </div>
 
       {/* Add Form Dialog */}

@@ -10,3 +10,4 @@ export const inviteToTrip = (tripId, friendId) =>
 export const getTripInvitations = () => api.get("/trips/invitations");
 export const respondToTripInvitation = (tripId, accept) =>
   api.post(`/trips/${tripId}/respond`, { accept });
+export const getTripMessages = (tripId) => api.get(`/trips/${tripId}/messages`);
