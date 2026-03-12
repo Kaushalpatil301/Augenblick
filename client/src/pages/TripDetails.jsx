@@ -202,6 +202,28 @@ export default function TripDetails() {
     fetchFriends();
   }, [tripId]);
 
+    // Auto-poll when AI itinerary is being generated
+  useEffect(() => {
+    if (!trip || trip.itineraryStatus !== "pending") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await getTripById(tripId);
+        const updated = res.data.data;
+
+        // Always update the trip to show partial results as they come in
+        setTrip(updated);
+
+        if (updated.itineraryStatus !== "pending") {
+          clearInterval(interval);
+          if (updated.itineraryStatus === "done") {
+            toast.success("✨ Your AI itinerary is ready!");
+          }
+        }
+      } catch {}
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [trip?.itineraryStatus, tripId]);
+
   // Fetch place images and info from Wikimedia when trip loads
   useEffect(() => {
     if (!trip) return;
@@ -1634,7 +1656,7 @@ export default function TripDetails() {
           <DialogHeader>
             <DialogTitle>Trip Itinerary</DialogTitle>
           </DialogHeader>
-          <Itinerary />
+          <Itinerary Trip={trip}/>
         </DialogContent>
       </Dialog>
 
