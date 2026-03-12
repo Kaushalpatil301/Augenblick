@@ -15,3 +15,8 @@ export const getHotelOffers = (
   api.get(
     `/amadeus/hotel-offers?hotelIds=${encodeURIComponent(hotelIds)}&checkInDate=${checkInDate}&checkOutDate=${checkOutDate}&adults=${adults}`,
   );
+
+export const getPointsOfInterest = (latitude, longitude, radius = 10000) =>
+  api.get(
+    `/amadeus/pois?latitude=${latitude}&longitude=${longitude}&radius=${radius}`,
+  );

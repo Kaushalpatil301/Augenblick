@@ -13,7 +13,9 @@ import {
 import { getFriends } from "../api/friends";
 import DestinationMapPicker from "../components/DestinationMapPicker";
 import HotelPicker from "../components/HotelPicker";
+import AttractionPicker from "../components/AttractionPicker";
 import TripMap from "../components/TripMap";
+import { fetchWikipediaInfo } from "../lib/wikiCache";
 import {
   MapPin,
   CalendarDays,
@@ -162,6 +164,7 @@ export default function TripDetails() {
   const [destForm, setDestForm] = useState({ city: "", country: "" });
   const [addingDest, setAddingDest] = useState(false);
   const [pickingHotel, setPickingHotel] = useState(false);
+  const [pickingAttraction, setPickingAttraction] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [placeImages, setPlaceImages] = useState({});
   const [placeInfo, setPlaceInfo] = useState({});
@@ -221,35 +224,10 @@ export default function TripDetails() {
 
     places.forEach(async (place) => {
       if (placeImages[place.key]) return;
-      try {
-        const searchTerm = `${place.name}${place.country ? ` ${place.country}` : ""}`;
-        // Step 1: Search Wikipedia for the best matching page title
-        const searchRes = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&srlimit=1&format=json&origin=*`,
-        );
-        const searchData = await searchRes.json();
-        const pageTitle = searchData?.query?.search?.[0]?.title;
-        if (!pageTitle) throw new Error("No page found");
-
-        // Step 2: Get page summary with image using the exact title
-        const res = await fetch(
-          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
-        );
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setPlaceImages((prev) => ({
-          ...prev,
-          [place.key]:
-            data.thumbnail?.source || data.originalimage?.source || null,
-        }));
-        setPlaceInfo((prev) => ({
-          ...prev,
-          [place.key]: data.extract || "",
-        }));
-      } catch {
-        setPlaceImages((prev) => ({ ...prev, [place.key]: null }));
-        setPlaceInfo((prev) => ({ ...prev, [place.key]: "" }));
-      }
+      const searchTerm = `${place.name}${place.country ? ` ${place.country}` : ""}`;
+      const info = await fetchWikipediaInfo(searchTerm);
+      setPlaceImages((prev) => ({ ...prev, [place.key]: info.image }));
+      setPlaceInfo((prev) => ({ ...prev, [place.key]: info.description }));
     });
   }, [trip]);
 
@@ -461,6 +439,17 @@ export default function TripDetails() {
       fetchTrip();
     } catch {
       toast.error("Failed to add hotel");
+    }
+  };
+
+  const handleAddAttraction = async (attractionData) => {
+    try {
+      await updateTripDetails(tripId, "attractions", attractionData);
+      toast.success("Attraction added");
+      fetchTrip();
+    } catch {
+      toast.error("Failed to add attraction");
+      throw new Error("Failed to add attraction");
     }
   };
 
@@ -1177,9 +1166,10 @@ export default function TripDetails() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowAddForm("attractions")}
+                  onClick={() => setPickingAttraction(true)}
+                  className="gap-1"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} /> Discover
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1580,6 +1570,24 @@ export default function TripDetails() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attraction Picker Dialog */}
+      <Dialog
+        open={pickingAttraction}
+        onOpenChange={(o) => !o && setPickingAttraction(false)}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Discover Attractions</DialogTitle>
+          </DialogHeader>
+          <AttractionPicker
+            trip={trip}
+            onAdd={handleAddAttraction}
+            onClose={() => setPickingAttraction(false)}
+            existingAttractions={trip.attractions || []}
+          />
         </DialogContent>
       </Dialog>
 
