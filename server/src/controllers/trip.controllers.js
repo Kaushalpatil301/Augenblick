@@ -3,7 +3,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Message from "../models/Message.js";
-
+import mongoose from "mongoose";
 const createTrip = asyncHandler(async (req, res) => {
   const {
     name,
@@ -125,6 +125,60 @@ const getUserTrips = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, trips, "Trips fetched successfully"));
 });
 
+/**
+ * Utility to fix malformed n8n data stored as root-level string keys
+ * Example: {"$set": {"agents.activities": {...}}}: null
+ */
+const repairTripAgentsData = (trip, rawDoc) => {
+  if (!rawDoc) return false;
+  let needsRepair = false;
+  const repairedAgents = { ...(trip.agents || {}) };
+
+  Object.keys(rawDoc).forEach((key) => {
+    // Look for keys that start with JSON or contain $set
+    if (key.trim().startsWith("{") && (key.includes("$set") || key.includes("agents."))) {
+      try {
+        // Clean key if it has spaces or escaped chars (common with n8n/mongo shell issues)
+        const cleanKey = key.replace(/\\"/g, '"').trim();
+        const parsed = JSON.parse(cleanKey);
+        
+        // n8n often puts the whole update command as a key
+        const setData = parsed["$set"] || parsed;
+
+        if (setData) {
+          Object.keys(setData).forEach((innerKey) => {
+            // Handle "agents.activities" or just "activities" etc.
+            let category = null;
+            if (innerKey.startsWith("agents.")) {
+              category = innerKey.split(".")[1];
+            } else if (["activities", "accommodation", "dining", "transport"].includes(innerKey)) {
+              category = innerKey;
+            }
+
+            if (category && setData[innerKey]) {
+              // Extract the data array if it's wrapped in { status, data }
+              const incoming = setData[innerKey];
+              repairedAgents[category] = {
+                status: "success",
+                data: incoming?.data || (Array.isArray(incoming) ? incoming : [])
+              };
+              needsRepair = true;
+            }
+          });
+        }
+      } catch (e) {
+        console.error("[Repair] Failed to parse key:", key.substring(0, 50));
+      }
+    }
+  });
+
+  if (needsRepair) {
+    trip.agents = repairedAgents;
+    trip.markModified("agents");
+  }
+  return needsRepair;
+};
+
 const getTripById = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
   const userId = req.user._id;
@@ -140,6 +194,88 @@ const getTripById = asyncHandler(async (req, res) => {
   if (!trip) {
     throw new ApiError(404, "Trip not found or you are not a member");
   }
+
+  // ── REPAIR DATA (LOCAL & EXTERNAL COLLECTIONS) ───────────────────────
+  // We MUST fetch the raw document using the native driver because Mongoose
+  // strips out fields (like the shredded keys) that aren't in the schema.
+  const rawTrip = await mongoose.connection.db.collection("trips").findOne({ 
+    _id: new mongoose.Types.ObjectId(tripId) 
+  });
+
+  // 1. Fix malformed keys in the trip document itself
+  const fixed = repairTripAgentsData(trip, rawTrip);
+  
+  // 2. Scavenge from separate n8n collections
+  const externalAgents = {
+    activities: [],
+    accommodation: [],
+    dining: [],
+    transport: []
+  };
+
+  const collectionMap = {
+    activities: "activities",
+    accommodation: "accommodations",
+    dining: "dining",
+    transport: "transportation"
+  };
+
+  for (const [key, colName] of Object.entries(collectionMap)) {
+    try {
+      const collection = mongoose.connection.db.collection(colName);
+      const docs = await collection.find({}).toArray();
+
+      docs.forEach(doc => {
+        // Find if this doc belongs to our trip (tripId is inside a broken key)
+        const brokenKey = Object.keys(doc).find(k => k.includes(tripId));
+        if (brokenKey) {
+          try {
+            const cleanKey = brokenKey.replace(/\\"/g, '"').trim();
+            const parsed = JSON.parse(cleanKey);
+            const setData = parsed["$set"] || parsed;
+            
+            Object.keys(setData).forEach(innerKey => {
+              // Extract the data array
+              let val = setData[innerKey];
+              if (val && val.data && Array.isArray(val.data)) {
+                externalAgents[key].push(...val.data);
+              } else if (Array.isArray(val)) {
+                externalAgents[key].push(...val);
+              }
+            });
+          } catch (e) {}
+        }
+      });
+    } catch (err) {}
+  }
+
+  // Merge external findings into the trip object for the UI
+  let merged = false;
+  Object.keys(externalAgents).forEach(cat => {
+    if (externalAgents[cat].length > 0) {
+      if (!trip.agents) trip.agents = {};
+      if (!trip.agents[cat]) trip.agents[cat] = { status: "success", data: [] };
+      
+      const existingNames = new Set(trip.agents[cat].data.map(d => 
+        (d.name || d.hotel_name || d.restaurantName || "").toLowerCase()
+      ));
+
+      externalAgents[cat].forEach(item => {
+        const name = (item.name || item.hotel_name || item.restaurantName || "").toLowerCase();
+        if (name && !existingNames.has(name)) {
+          trip.agents[cat].data.push(item);
+          merged = true;
+        }
+      });
+    }
+  });
+
+  if (fixed || merged) {
+    trip.markModified("agents");
+    await trip.save();
+    console.log("[Repair] Healed agent data from native driver for trip:", tripId);
+  }
+  // ──────────────────────────────────────────────────────────────────────
 
   return res
     .status(200)
@@ -182,6 +318,7 @@ const updateTripDetails = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, trip, `${type} added successfully`));
 });
+
 
 const addDestination = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
