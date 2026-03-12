@@ -35,11 +35,82 @@ const createTrip = asyncHandler(async (req, res) => {
     createdBy: userId,
     members: [userId],
   });
+    // ── Fire n8n webhook (fire-and-forget) ──────────────────────────────────
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const durationDays = Math.max(
+      1,
+      Math.round((end - start) / (1000 * 60 * 60 * 24))
+    );
+    const destinationName =
+      mainDestination?.city ||
+      mainDestination?.displayName ||
+      destinations?.[0]?.city ||
+      "Unknown";
+
+    const query = `${durationDays} days in ${destinationName}. Trip: "${name}". ` +
+      `Dates: ${startDate} to ${endDate}. ` +
+      (origin?.city ? `Travelling from ${origin.city}. ` : "") +
+      (destinations?.length > 0
+        ? `Stops: ${destinations.map((d) => d.city || d.displayName).join(", ")}. `
+        : "") +
+      `Looking for activities, accommodation, dining and transport recommendations.`;
+
+    const serverUrl = process.env.SERVER_URL || "http://localhost:8000";
+    const webhookBody = {
+      query,
+      budget: Number(budget),
+      currency: "USD",
+      tripId: trip._id.toString(),
+      callbackUrl: `${serverUrl}/api/v1/trips/${trip._id}/n8n-callback`,
+    };
+
+    const webhookUrl =
+      process.env.N8N_WEBHOOK_URL ||
+      "http://localhost:5678/webhook-test/travel-plan";
+
+    fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(webhookBody),
+    })
+      .then(async (r) => {
+        if (r.ok) {
+          const result = await r.json();
+          // If n8n returns the itinerary immediately in the response
+          if (result && (result.days || result.activities)) {
+            const t = await Trip.findById(trip._id);
+            if (t) {
+              t.itinerary = result;
+              t.itineraryStatus = "done";
+              await t.save();
+              console.log("[n8n] Captured immediate itinerary from response");
+            }
+          }
+        }
+      })
+      .catch((err) =>
+        console.error(
+          "[n8n webhook] Failed to fire travel-plan webhook:",
+          err.message
+        )
+      );
+  } catch (webhookErr) {
+    console.error(
+      "[n8n webhook] Error preparing webhook payload:",
+      webhookErr.message
+    );
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   return res
     .status(201)
     .json(new ApiResponse(201, trip, "Trip created successfully"));
 });
+
+
+
 
 const getUserTrips = asyncHandler(async (req, res) => {
   const userId = req.user._id;
