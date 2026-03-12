@@ -20,11 +20,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.0",
     "socket.io": "^4.8.3"
-<<<<<<< HEAD
-=======
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
->>>>>>> a1614e05cf3fff68bbc250645d846b2b1fe062b2
   }
 }
