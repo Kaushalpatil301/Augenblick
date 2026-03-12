@@ -1656,7 +1656,7 @@ export default function TripDetails() {
           <DialogHeader>
             <DialogTitle>Trip Itinerary</DialogTitle>
           </DialogHeader>
-          <Itinerary Trip={trip}/>
+          <Itinerary trip={trip}/>
         </DialogContent>
       </Dialog>
 
