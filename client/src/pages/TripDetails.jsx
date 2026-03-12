@@ -48,6 +48,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
+import TripChat from "../components/TripChat";
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
@@ -811,7 +812,10 @@ export default function TripDetails() {
           </CardContent>
         </Card>
       </div>
-
+              {/* Chat Sidebar */}
+        <div className="lg:col-span-1">
+          <TripChat tripId={trip._id} members={trip.members} />
+        </div>
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>
         <DialogContent>

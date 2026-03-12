@@ -16,3 +16,4 @@ export const respondToTripInvitation = (tripId, accept) =>
   api.post(`trips/${tripId}/respond`, { accept });
 export const updateTripRoute = (tripId, data) =>
   api.patch(`trips/${tripId}/route`, data);
+export const getTripMessages = (tripId) => api.get(`/trips/${tripId}/messages`);

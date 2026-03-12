@@ -8,6 +8,7 @@ import Trips from "./Trips";
 import TripDetails from "./TripDetails";
 import { Button } from "../components/ui/button";
 import { Map, ListOrdered, Users, Plane } from "lucide-react";
+import VoiceChat from "../components/VoiceChat";
 import {
   Routes,
   Route,
@@ -41,10 +42,9 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/planner"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-600 hover:bg-gray-100"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-100"
                 }`
               }
             >
@@ -54,10 +54,9 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/itinerary"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-100"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+                  ? "bg-indigo-50 text-indigo-700"
+                  : "text-gray-600 hover:bg-gray-100"
                 }`
               }
             >
@@ -67,10 +66,9 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/friends"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-green-50 text-green-700"
-                    : "text-gray-600 hover:bg-gray-100"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+                  ? "bg-green-50 text-green-700"
+                  : "text-gray-600 hover:bg-gray-100"
                 }`
               }
             >
@@ -80,10 +78,9 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/trips"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-orange-50 text-orange-700"
-                    : "text-gray-600 hover:bg-gray-100"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+                  ? "bg-orange-50 text-orange-700"
+                  : "text-gray-600 hover:bg-gray-100"
                 }`
               }
             >
@@ -113,6 +110,7 @@ export default function Dashboard() {
           <Route path="friends" element={<FriendsList />} />
           <Route path="trips" element={<Trips />} />
           <Route path="trip/:tripId" element={<TripDetails />} />
+          <Route path="voice/:tripId" element={<VoiceChat />} />
           <Route index element={<Navigate to="planner" replace />} />
         </Routes>
       </main>
