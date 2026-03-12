@@ -506,6 +506,284 @@ const deleteTrip = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Trip deleted successfully"));
 });
 
+const updateTripFromN8n = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const rawData = { ...req.query, ...req.body };
+  
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+
+  console.log("[n8n Callback] Received payload for trip:", tripId);
+
+  // ── 1. THE AGGRESSIVE SCAVENGER ──────────────────────────────────────────
+  // Reconstruct "shredded" payloads where JSON fragments are stuck in keys
+  let agentsFound = {};
+  let fullPayloadString = "";
+
+  // 1. Join keys WITHOUT spaces to reconstruct split JSON fragments
+  const keys = Object.keys(rawData);
+  const nullCount = keys.filter(k => rawData[k] === null).length;
+  
+  if (nullCount > 5 || keys.some(k => k.includes("agents."))) {
+    // Join with nothing so split property names/values reconnect
+    fullPayloadString = keys.join("")
+      .replace(/\\n/g, "")
+      .replace(/\\"/g, '"')
+      .replace(/""/g, '"'); 
+  } else {
+    fullPayloadString = JSON.stringify(rawData);
+  }
+
+  // Define categories to look for
+  const categories = ["activities", "accommodation", "dining", "transport"];
+
+  categories.forEach(cat => {
+    try {
+      // Look for the category and the data array following it
+      // This regex handles escaped quotes and newlines common in these broken payloads
+      const regex = new RegExp(`["'\\\\]*${cat}["'\\\\]*[:\\s]*{[^}]*["'\\\\]*data["'\\\\]*\\s*:\\s*(\\[[\\s\\S]*?\\])`, "i");
+      const match = fullPayloadString.match(regex);
+      
+      if (match && match[1]) {
+        let cleanJson = match[1]
+          .replace(/\\n/g, "") // remove newlines
+          .replace(/\\"/g, '"') // unescape quotes
+          .replace(/""/g, '"')  // fix double quotes
+          .trim();
+
+        // Ensure it ends correctly
+        if (cleanJson.endsWith("}]")) {
+          const parsedData = JSON.parse(cleanJson);
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            agentsFound[cat] = { status: "success", data: parsedData };
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`[Scavenger] Failed to parse category ${cat}:`, e.message);
+    }
+  });
+
+  // Fallback to standard object scanning if regex didn't find everything
+  if (Object.keys(agentsFound).length === 0) {
+    const scan = (obj) => {
+      if (!obj || typeof obj !== "object") return;
+      if (obj.category && obj.data) {
+        agentsFound[obj.category] = { status: "success", data: obj.data };
+      }
+      Object.keys(obj).forEach(key => {
+        if (obj[key] && typeof obj[key] === "object") scan(obj[key]);
+      });
+    };
+    scan(rawData);
+  }
+
+  // Support "days" (The Itinerary format)
+  if (rawData.days || (rawData.data && rawData.data.days)) {
+    const itData = rawData.days || rawData.data;
+    trip.itinerary = itData;
+    trip.markModified("itinerary");
+    trip.itineraryStatus = "done";
+  }
+
+  // ── 2. APPLY UPDATES ─────────────────────────────────────────────────────
+  if (Object.keys(agentsFound).length > 0) {
+    trip.agents = { ...trip.agents, ...agentsFound };
+    trip.markModified("agents");
+    trip.itineraryStatus = "done"; // Mark as done so UI stops loading
+    console.log("[n8n Callback] Successfully merged agents:", Object.keys(agentsFound));
+  }
+
+  await trip.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Trip updated from n8n"));
+});
+
+const getAgentPlaygroundData = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+
+  const results = {
+    activities: [],
+    accommodation: [],
+    dining: [],
+    transport: []
+  };
+
+  const normalizeText = (text) =>
+    String(text || "")
+      .replace(/\\n/g, " ")
+      .replace(/\\r/g, " ")
+      .replace(/\\t/g, " ")
+      .replace(/\\"/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const extractItemsFromParsed = (parsed, bucket) => {
+    const setData = parsed?.$set || parsed;
+    if (!setData || typeof setData !== "object") return;
+
+    Object.values(setData).forEach((val) => {
+      if (val && Array.isArray(val.data)) {
+        bucket.push(...val.data);
+        return;
+      }
+      if (Array.isArray(val)) {
+        bucket.push(...val);
+      }
+    });
+  };
+
+  const extractRegexItems = (payload, key) => {
+    const list = [];
+
+    const pullPairs = (nameField, extraFieldMap = {}) => {
+      const re = new RegExp(`"${nameField}"\\s*:\\s*"([^"]+)"`, "g");
+      let match;
+      while ((match = re.exec(payload)) !== null) {
+        const obj = {};
+        const value = (match[1] || "").trim();
+        if (!value) continue;
+
+        if (key === "dining") {
+          obj.restaurantName = value;
+          obj.name = value;
+        } else if (key === "accommodation") {
+          obj.hotel_name = value;
+          obj.name = value;
+        } else if (key === "transport") {
+          obj.provider = value;
+          obj.name = value;
+        } else {
+          obj.name = value;
+        }
+
+        Object.entries(extraFieldMap).forEach(([src, dst]) => {
+          const extraRe = new RegExp(`"${src}"\\s*:\\s*"([^"]+)"`, "g");
+          const slice = payload.slice(match.index, Math.min(payload.length, match.index + 1200));
+          const extraMatch = extraRe.exec(slice);
+          if (extraMatch?.[1]) obj[dst] = extraMatch[1].trim();
+        });
+
+        list.push(obj);
+      }
+    };
+
+    if (key === "activities") {
+      pullPairs("name", { neighborhood: "neighborhood", pic_url: "pic_url" });
+    } else if (key === "accommodation") {
+      pullPairs("hotel_name", { neighborhood: "neighborhood", pic_url: "pic_url" });
+      pullPairs("name", { neighborhood: "neighborhood", pic_url: "pic_url" });
+    } else if (key === "dining") {
+      pullPairs("name", { vibe: "vibe", image_url: "image_url" });
+    } else if (key === "transport") {
+      pullPairs("provider", { mode: "mode", estimated_total_cost: "estimated_total_cost" });
+    }
+
+    return list;
+  };
+
+  const dedupeItems = (arr, key) => {
+    const seen = new Set();
+    return arr.filter((item) => {
+      if (!item || typeof item !== "object") return false;
+      const signature = (
+        item.name ||
+        item.hotel_name ||
+        item.restaurantName ||
+        item.provider ||
+        item.id ||
+        JSON.stringify(item)
+      )
+        .toString()
+        .toLowerCase()
+        .trim();
+
+      if (!signature) return false;
+      const scoped = `${key}:${signature}`;
+      if (seen.has(scoped)) return false;
+      seen.add(scoped);
+      return true;
+    });
+  };
+
+  const collectionMap = {
+    activities: "activities",
+    accommodation: "accommodations",
+    dining: "dining",
+    transport: "transportation"
+  };
+
+  for (const [key, colName] of Object.entries(collectionMap)) {
+    try {
+      const collection = mongoose.connection.db.collection(colName);
+      const docs = await collection.find({}).toArray();
+
+      docs.forEach((doc) => {
+        const docKeys = Object.keys(doc).filter((k) => k !== "_id" && k !== "__v");
+        const tripKey = docKeys.find((k) => k.includes(tripId));
+
+        // Keep strict trip binding where available.
+        if (!tripKey) return;
+
+        // 1) Parse the exact key containing tripId (required path).
+        try {
+          const parsed = JSON.parse(tripKey);
+          extractItemsFromParsed(parsed, results[key]);
+        } catch (e) {
+          // ignore and continue with fallback strategies
+        }
+
+        // 2) Parse any additional JSON-like keys in the same document.
+        docKeys.forEach((docKey) => {
+          if (!docKey.trim().startsWith("{")) return;
+          try {
+            const parsed = JSON.parse(docKey);
+            extractItemsFromParsed(parsed, results[key]);
+          } catch (e) {
+            // ignore malformed JSON chunks
+          }
+        });
+
+        // 3) Last-resort recovery: rebuild payload from shredded keys and regex-extract item fields.
+        const payload = normalizeText(docKeys.join(""));
+        if (payload) {
+          const fallbackItems = extractRegexItems(payload, key);
+          if (fallbackItems.length > 0) {
+            results[key].push(...fallbackItems);
+          }
+        }
+      });
+
+      // If no strict trip-bound records were recovered, run a guarded fallback
+      // against malformed docs that still contain this agent category payload.
+      if (results[key].length === 0) {
+        docs.forEach((doc) => {
+          const docKeys = Object.keys(doc).filter((k) => k !== "_id" && k !== "__v");
+          const payload = normalizeText(docKeys.join(""));
+          if (!payload.includes(`agents.${key}`) && !payload.includes(`"category":"${key}"`)) {
+            return;
+          }
+
+          const fallbackItems = extractRegexItems(payload, key);
+          if (fallbackItems.length > 0) {
+            results[key].push(...fallbackItems);
+          }
+        });
+      }
+
+      results[key] = dedupeItems(results[key], key);
+    } catch (err) {
+      console.error(`[Playground] Failed to query ${colName}:`, err.message);
+    }
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, results, "Agent playground data fetched successfully"));
+});
+
 export {
   createTrip,
   getUserTrips,
@@ -520,4 +798,7 @@ export {
   getTripMessages,
   leaveTrip,
   deleteTrip,
+  updateTripFromN8n,
+  getAgentPlaygroundData,
 };
+
