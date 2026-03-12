@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 // Import Routes
 import authRouter from "./routes/auth.routes.js";
+import friendRouter from "./routes/friend.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -29,9 +30,16 @@ app.use(express.static("public")); // Use "public" folder
 app.use(cookieParser()); // Parse cookies
 
 app.use("/api/v1/auth", authRouter);
-
+app.use("/api/v1/friends", friendRouter);
+app.get("/api/v1/test", (req, res) => {
+  res.json({ message: "Test route is working!" });
+});
 app.get("/", (req, res) => {
   res.send("Welcome to my Project");
+});
+
+app.get("/test", (req, res) => {
+  res.json({ message: "Test route working" });
 });
 
 export default app;

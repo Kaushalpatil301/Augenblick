@@ -54,6 +54,18 @@ const userSchema = new Schema(
     forgotPasswordExpiry: Date,
     emailVerificationToken: String,
     emailVerificationExpiry: Date,
+    friends: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    friendRequests: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
