@@ -61,6 +61,8 @@ export default function TripChat({ tripId, members }) {
     }, [tripId]);
 
     useEffect(() => {
+        print(messages)
+        if(messages) return;
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 

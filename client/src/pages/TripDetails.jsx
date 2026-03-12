@@ -11,6 +11,7 @@ import {
 import { getFriends } from "../api/friends";
 import DestinationMapPicker from "../components/DestinationMapPicker";
 import HotelPicker from "../components/HotelPicker";
+import TripMap from "../components/TripMap";
 import {
   MapPin,
   CalendarDays,
@@ -46,6 +47,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
@@ -427,63 +434,326 @@ export default function TripDetails() {
         </CardContent>
       </Card>
 
-      {/* Trip Route Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Navigation className="text-indigo-500" size={20} /> Trip Route
-          </CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={openRouteEditor}
-            className="gap-1"
-          >
-            <Pencil size={13} /> Edit
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
-                Origin
-              </p>
-              {trip.origin?.city ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
-                  <span className="font-medium text-sm">
-                    {trip.origin.city}
-                    {trip.origin.country ? `, ${trip.origin.country}` : ""}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 italic">Not set</p>
-              )}
-            </div>
-            <ArrowRight size={18} className="text-gray-300 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
-                Main Destination
-              </p>
-              {trip.mainDestination?.city ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
-                  <span className="font-medium text-sm">
-                    {trip.mainDestination.city}
-                    {trip.mainDestination.country
-                      ? `, ${trip.mainDestination.country}`
-                      : ""}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 italic">Not set</p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs for different views */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="map">Map</TabsTrigger>
+          <TabsTrigger value="planning">Planning</TabsTrigger>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+        </TabsList>
 
-      {/* Route Edit Dialog */}
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Trip Route Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Navigation className="text-indigo-500" size={20} /> Trip Route
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openRouteEditor}
+                className="gap-1"
+              >
+                <Pencil size={13} /> Edit
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
+                    Origin
+                  </p>
+                  {trip.origin?.city ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
+                      <span className="font-medium text-sm">
+                        {trip.origin.city}
+                        {trip.origin.country ? `, ${trip.origin.country}` : ""}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Not set</p>
+                  )}
+                </div>
+                <ArrowRight size={18} className="text-gray-300 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
+                    Main Destination
+                  </p>
+                  {trip.mainDestination?.city ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
+                      <span className="font-medium text-sm">
+                        {trip.mainDestination.city}
+                        {trip.mainDestination.country
+                          ? `, ${trip.mainDestination.country}`
+                          : ""}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Not set</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Map Tab */}
+        <TabsContent value="map" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MapPin className="text-purple-500" size={20} /> Trip Overview
+                Map
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TripMap trip={trip} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Planning Tab */}
+        <TabsContent value="planning" className="space-y-6">
+          {/* Destinations */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MapPin className="text-blue-500" size={20} /> Destinations
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddingDest(true)}
+                className="gap-1"
+              >
+                <Plus size={14} /> Add City
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {(!trip.destinations || trip.destinations.length === 0) &&
+                  !addingDest && (
+                    <p className="text-sm text-gray-500 italic">
+                      No destinations added yet. Add cities you plan to visit.
+                    </p>
+                  )}
+                {trip.destinations?.map((dest) => (
+                  <div
+                    key={dest._id}
+                    className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium px-3 py-1.5 rounded-full"
+                  >
+                    <MapPin size={12} />
+                    {dest.city}, {dest.country}
+                    <button
+                      onClick={() => handleRemoveDestination(dest._id)}
+                      className="ml-1 text-blue-400 hover:text-red-500 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Map picker dialog */}
+              {addingDest && (
+                <Dialog
+                  open={addingDest}
+                  onOpenChange={(o) => !o && setAddingDest(false)}
+                >
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Pick Destinations on Map</DialogTitle>
+                    </DialogHeader>
+                    <DestinationMapPicker
+                      onAdd={handleAddDestination}
+                      onClose={() => setAddingDest(false)}
+                      existingDestinations={trip.destinations || []}
+                      origin={trip.origin}
+                      mainDestination={trip.mainDestination}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Planning Sections Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Attractions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Camera className="text-pink-500" size={20} /> Attractions &
+                  Destinations
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAddForm("attractions")}
+                >
+                  <Plus size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {trip.attractions.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No attractions added yet
+                  </p>
+                ) : (
+                  trip.attractions.map((attr, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">{attr.name}</p>
+                      <p className="text-xs text-gray-500">{attr.location}</p>
+                      {attr.date && (
+                        <p className="text-[10px] text-indigo-600 mt-1">
+                          {formatDate(attr.date)}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Accommodations */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Hotel className="text-blue-500" size={20} /> Accommodations
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPickingHotel(true)}
+                >
+                  <Plus size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {trip.accommodations.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No accommodations added yet
+                  </p>
+                ) : (
+                  trip.accommodations.map((acc, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">{acc.name}</p>
+                      <p className="text-xs text-gray-500">{acc.address}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-[10px] text-indigo-600">
+                          {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
+                        </p>
+                        {acc.priceTotal && (
+                          <span className="text-[10px] font-semibold text-green-600">
+                            {acc.priceCurrency} {acc.priceTotal}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Transport */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Plane className="text-green-500" size={20} /> Transport
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAddForm("transport")}
+                >
+                  <Plus size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {trip.transport.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No transport details added yet
+                  </p>
+                ) : (
+                  trip.transport.map((trans, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="mb-1 text-[10px] h-4"
+                      >
+                        {trans.type}
+                      </Badge>
+                      <p className="text-sm font-medium">{trans.details}</p>
+                      <p className="text-[10px] text-indigo-600 mt-1">
+                        Dep: {formatDateTime(trans.departureTime)} | Arr:{" "}
+                        {formatDateTime(trans.arrivalTime)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Dining */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Utensils className="text-orange-500" size={20} /> Dining
+                  Options
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAddForm("dining")}
+                >
+                  <Plus size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {trip.dining.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No dining options added yet
+                  </p>
+                ) : (
+                  trip.dining.map((dine, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">
+                        {dine.restaurantName}
+                      </p>
+                      <p className="text-xs text-gray-500">{dine.cuisine}</p>
+                      <p className="text-[10px] text-indigo-600 mt-1">
+                        {formatDateTime(dine.dateTime)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Chat Tab */}
+        <TabsContent value="chat" className="space-y-6">
+          <TripChat tripId={trip._id} members={trip.members} />
+        </TabsContent>
+      </Tabs>
       <Dialog
         open={editingRoute}
         onOpenChange={(o) => {
@@ -609,249 +879,8 @@ export default function TripDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* Destinations */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <MapPin className="text-blue-500" size={20} /> Destinations
-          </CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setAddingDest(true)}
-            className="gap-1"
-          >
-            <Plus size={14} /> Add City
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {(!trip.destinations || trip.destinations.length === 0) &&
-              !addingDest && (
-                <p className="text-sm text-gray-500 italic">
-                  No destinations added yet. Add cities you plan to visit.
-                </p>
-              )}
-            {trip.destinations?.map((dest) => (
-              <div
-                key={dest._id}
-                className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium px-3 py-1.5 rounded-full"
-              >
-                <MapPin size={12} />
-                {dest.city}, {dest.country}
-                <button
-                  onClick={() => handleRemoveDestination(dest._id)}
-                  className="ml-1 text-blue-400 hover:text-red-500 transition-colors"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
+   
 
-          {/* Map picker dialog */}
-          {addingDest && (
-            <Dialog
-              open={addingDest}
-              onOpenChange={(o) => !o && setAddingDest(false)}
-            >
-              <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Pick Destinations on Map</DialogTitle>
-                </DialogHeader>
-                <DestinationMapPicker
-                  onAdd={handleAddDestination}
-                  onClose={() => setAddingDest(false)}
-                  existingDestinations={trip.destinations || []}
-                  origin={trip.origin}
-                  mainDestination={trip.mainDestination}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Planning Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Attractions */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Camera className="text-pink-500" size={20} /> Attractions &
-              Destinations
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowAddForm("attractions")}
-            >
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.attractions.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
-                No attractions added yet
-              </p>
-            ) : (
-              trip.attractions.map((attr, i) => (
-                <div
-                  key={i}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <p className="font-semibold text-sm">{attr.name}</p>
-                  <p className="text-xs text-gray-500">{attr.location}</p>
-                  {attr.date && (
-                    <p className="text-[10px] text-indigo-600 mt-1">
-                      {formatDate(attr.date)}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Accommodations */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Hotel className="text-blue-500" size={20} /> Accommodations
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPickingHotel(true)}
-            >
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.accommodations.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
-                No accommodations added yet
-              </p>
-            ) : (
-              trip.accommodations.map((acc, i) => (
-                <div
-                  key={i}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <p className="font-semibold text-sm">{acc.name}</p>
-                  <p className="text-xs text-gray-500">{acc.address}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-[10px] text-indigo-600">
-                      {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
-                    </p>
-                    {acc.priceTotal && (
-                      <span className="text-[10px] font-semibold text-green-600">
-                        {acc.priceCurrency} {acc.priceTotal}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Hotel Picker Dialog */}
-        <Dialog
-          open={pickingHotel}
-          onOpenChange={(o) => !o && setPickingHotel(false)}
-        >
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Find a Hotel</DialogTitle>
-            </DialogHeader>
-            <HotelPicker
-              trip={trip}
-              onAdd={handleAddHotel}
-              onClose={() => setPickingHotel(false)}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Transport */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Plane className="text-green-500" size={20} /> Transport
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowAddForm("transport")}
-            >
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.transport.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
-                No transport details added yet
-              </p>
-            ) : (
-              trip.transport.map((trans, i) => (
-                <div
-                  key={i}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <Badge variant="secondary" className="mb-1 text-[10px] h-4">
-                    {trans.type}
-                  </Badge>
-                  <p className="text-sm font-medium">{trans.details}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">
-                    Dep: {formatDateTime(trans.departureTime)} | Arr:{" "}
-                    {formatDateTime(trans.arrivalTime)}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Dining */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Utensils className="text-orange-500" size={20} /> Dining Options
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowAddForm("dining")}
-            >
-              <Plus size={16} />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trip.dining.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
-                No dining options added yet
-              </p>
-            ) : (
-              trip.dining.map((dine, i) => (
-                <div
-                  key={i}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <p className="font-semibold text-sm">{dine.restaurantName}</p>
-                  <p className="text-xs text-gray-500">{dine.cuisine}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">
-                    {formatDateTime(dine.dateTime)}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      {/* Chat Sidebar */}
-      <div className="lg:col-span-1">
-        <TripChat tripId={trip._id} members={trip.members} />
-      </div>
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>
         <DialogContent>
