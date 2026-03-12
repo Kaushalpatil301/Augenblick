@@ -30,10 +30,7 @@ export default function Planner() {
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden gap-6 p-6">
       
-      {/* Agent Sidebar */}
-      <div className="w-1/3 min-w-[320px] max-w-[400px] h-full flex-shrink-0">
-        <AgentChat />
-      </div>
+   
       
       {/* Main Collab Workspace */}
       <div className="flex-1 flex flex-col overflow-y-auto pr-2 pb-4">
