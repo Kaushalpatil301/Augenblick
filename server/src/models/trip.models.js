@@ -102,6 +102,11 @@ const tripSchema = new Schema(
         ref: "User",
       },
     ],
+    status: {
+      type: String,
+      enum: ["Planning", "Active", "Completed"],
+      default: "Planning",
+    },
   },
   { timestamps: true },
 );

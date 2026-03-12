@@ -1,13 +1,14 @@
-import Planner from "../components/Planner";
 import FriendsList from "../components/FriendsList";
 import UserSearch from "../components/UserSearch";
 import FriendRequests from "../components/FriendRequests";
 import CreateTrip from "../components/CreateTrip";
 import Trips from "./Trips";
 import TripDetails from "./TripDetails";
+import DashboardHome from "./DashboardHome";
 import { Button } from "../components/ui/button";
 import { Map, ListOrdered, Users, Plane } from "lucide-react";
 import VoiceChat from "../components/VoiceChat";
+import { Link } from "react-router-dom";
 import {
   Routes,
   Route,
@@ -24,38 +25,27 @@ export default function Dashboard() {
     navigate("/login");
   }
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+    <div className="min-h-screen bg-[#F5F5F0] font-['Lato'] text-[#2C2C2C]">
       {/* Top Navigation */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+      <header className="bg-white border-b border-[#E5E7EB] shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-              A
-            </div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-              Agentic Travel
-            </h1>
-          </div>
-
-          <nav className="flex items-center gap-1 sm:gap-2">
-            <NavLink
-              to="/dashboard/planner"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`
-              }
-            >
+          <Link to="/dashboard" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#2E7D32] text-white flex items-center justify-center font-bold text-lg shadow-sm">
               <Map size={18} />
-              <span className="hidden sm:inline">Planner</span>
-            </NavLink>
+            </div>
+            <h1 className="text-xl font-bold font-['Playfair_Display'] text-[#2C2C2C] tracking-wide">
+              Planora
+            </h1>
+          </Link>
+
+          <nav className="flex items-center gap-2 sm:gap-4">
+           
             <NavLink
               to="/dashboard/friends"
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-green-50 text-green-700"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-[#6D4C41]/10 text-[#6D4C41]"
+                  : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#6D4C41]"
                 }`
               }
             >
@@ -66,8 +56,8 @@ export default function Dashboard() {
               to="/dashboard/trips"
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-orange-50 text-orange-700"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-[#2E7D32]/10 text-[#2E7D32]"
+                  : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#2E7D32]"
                 }`
               }
             >
@@ -75,13 +65,13 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Trips</span>
             </NavLink>
 
-            <div className="h-6 w-[1px] bg-gray-200 mx-1 hidden sm:block"></div>
+            <div className="h-6 w-[1px] bg-[#E5E7EB] mx-1 hidden sm:block"></div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <CreateTrip onTripCreated={() => navigate("/dashboard/trips")} />
               <UserSearch />
               <FriendRequests />
-              <Button onClick={handleLogout}>
+              <Button onClick={handleLogout} variant="outline" className="border-[#E5E7EB] text-[#6D4C41] hover:bg-[#F5F5F0]">
                 Logout
               </Button>
             </div>
@@ -90,14 +80,13 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Routes>
-          <Route path="planner" element={<Planner />} />
           <Route path="friends" element={<FriendsList />} />
           <Route path="trips" element={<Trips />} />
           <Route path="trip/:tripId" element={<TripDetails />} />
           <Route path="voice/:tripId" element={<VoiceChat />} />
-          <Route index element={<Navigate to="planner" replace />} />
+          <Route index element={<DashboardHome />} />
         </Routes>
       </main>
     </div>

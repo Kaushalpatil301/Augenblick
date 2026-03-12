@@ -48,41 +48,45 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[#F5F5F0] relative overflow-hidden font-['Lato'] text-[#2C2C2C]">
+      {/* Decorative background element for map-like texture */}
+      <div className="absolute top-[10%] left-[-5%] w-[30%] h-[30%] rounded-full border border-[#E5E7EB]/60 pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[-10%] w-[50%] h-[50%] rounded-full border border-[#E5E7EB]/60 pointer-events-none" />
+
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <Card className="glass-card border-white/10">
-          <CardContent className="p-8 space-y-6">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold">
-                Create <span className="text-emerald-400">Account</span>
+        <Card className="bg-white rounded-[14px] shadow-xl border border-[#E5E7EB]">
+          <CardContent className="p-8 space-y-8">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-bold font-['Playfair_Display'] text-[#2C2C2C] tracking-tight">
+                Start your <span className="text-[#2E7D32]">Journey</span>
               </h2>
-              <p className="text-gray-400 text-sm mt-1">
-                Join and start managing group expenses
+              <p className="text-[#6D4C41] text-sm">
+                Join our travel community today
               </p>
             </div>
 
             {!showOTP && (
               <div className="space-y-4">
                 <input
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-[#F5F5F0] border border-[#E5E7EB] text-[#2C2C2C] placeholder-[#6D4C41]/60 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E7D32] focus:ring-1 focus:ring-[#2E7D32] transition-colors"
                   placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
 
                 <input
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                  className="w-full bg-[#F5F5F0] border border-[#E5E7EB] text-[#2C2C2C] placeholder-[#6D4C41]/60 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E7D32] focus:ring-1 focus:ring-[#2E7D32] transition-colors"
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
 
                 <input
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                  className="w-full bg-[#F5F5F0] border border-[#E5E7EB] text-[#2C2C2C] placeholder-[#6D4C41]/60 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E7D32] focus:ring-1 focus:ring-[#2E7D32] transition-colors"
                   placeholder="Phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -90,7 +94,7 @@ export default function SignUp() {
 
                 <input
                   type="password"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                  className="w-full bg-[#F5F5F0] border border-[#E5E7EB] text-[#2C2C2C] placeholder-[#6D4C41]/60 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E7D32] focus:ring-1 focus:ring-[#2E7D32] transition-colors"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -99,19 +103,16 @@ export default function SignUp() {
                 <button
                   onClick={handleSignup}
                   disabled={loading}
-                  className="w-full py-3 rounded-xl font-semibold text-black"
-                  style={{
-                    background: "linear-gradient(90deg,#4ade80,#22c55e)",
-                  }}
+                  className="w-full py-3 rounded-[12px] font-semibold text-white bg-[#2E7D32] hover:bg-[#2E7D32]/90 shadow-sm transition-colors mt-2"
                 >
                   {loading ? "Creating..." : "Create Account"}
                 </button>
               </div>
             )}
 
-            <p className="text-center text-gray-400 text-sm">
+            <p className="text-center text-[#6D4C41] text-sm mt-4">
               Already have an account?{" "}
-              <Link to="/login" className="text-emerald-400">
+              <Link to="/login" className="text-[#F4A261] hover:text-[#F4A261]/80 font-medium ml-1 transition-colors">
                 Sign In
               </Link>
             </p>

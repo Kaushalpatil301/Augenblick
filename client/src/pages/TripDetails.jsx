@@ -929,6 +929,7 @@ export default function TripDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {console.log(trip)}
                 {!trip.attractions?.length ? (
                   <p className="text-sm text-gray-500 italic">
                     No attractions added yet
