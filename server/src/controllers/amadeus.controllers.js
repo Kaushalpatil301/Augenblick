@@ -408,10 +408,90 @@ const getWikipediaInfo = asyncHandler(async (req, res) => {
   }
 });
 
+// GET /api/v1/amadeus/locations?keyword=Paris
+const searchLocations = asyncHandler(async (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword || keyword.trim().length < 2) {
+    throw new ApiError(400, "keyword query param required (min 2 chars)");
+  }
+
+  const cacheKey = `locations:${keyword.trim().toLowerCase()}`;
+  const cached = getCached(cacheKey);
+  if (cached)
+    return res.json(new ApiResponse(200, cached, "Locations fetched (cached)"));
+
+  const token = await getAmadeusToken();
+  const url = `${AMADEUS_BASE}/v1/reference-data/locations?subType=CITY,AIRPORT&keyword=${encodeURIComponent(keyword)}&max=10`;
+
+  const apiRes = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!apiRes.ok) {
+    const err = await apiRes.json().catch(() => ({}));
+    const detail = err?.errors?.[0]?.detail || "Location search failed";
+    throw new ApiError(apiRes.status, detail);
+  }
+
+  const data = await apiRes.json();
+  const result = data.data || [];
+  setCache(cacheKey, result);
+  return res.json(new ApiResponse(200, result, "Locations fetched"));
+});
+
+// GET /api/v1/amadeus/flight-offers?originCode=PAR&destinationCode=LON&departureDate=2026-04-01&adults=1
+const getFlightOffers = asyncHandler(async (req, res) => {
+  const { originCode, destinationCode, departureDate, adults = 1 } = req.query;
+
+  if (!originCode || !destinationCode || !departureDate) {
+    throw new ApiError(
+      400,
+      "originCode, destinationCode, and departureDate are required",
+    );
+  }
+
+  const cacheKey = `flights:${originCode}:${destinationCode}:${departureDate}:${adults}`;
+  const cached = getCached(cacheKey);
+  if (cached)
+    return res.json(
+      new ApiResponse(200, cached, "Flight offers fetched (cached)"),
+    );
+
+  const token = await getAmadeusToken();
+  const params = new URLSearchParams({
+    originLocationCode: originCode,
+    destinationLocationCode: destinationCode,
+    departureDate,
+    adults: String(adults),
+    max: "10",
+    currencyCode: "USD",
+  });
+
+  const url = `${AMADEUS_BASE}/v2/shopping/flight-offers?${params.toString()}`;
+
+  const apiRes = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!apiRes.ok) {
+    const err = await apiRes.json().catch(() => ({}));
+    const detail = err?.errors?.[0]?.detail || "Flight search failed";
+    console.error(`[Amadeus] getFlightOffers failed — HTTP ${apiRes.status}`);
+    throw new ApiError(apiRes.status, detail);
+  }
+
+  const data = await apiRes.json();
+  const result = data.data || [];
+  setCache(cacheKey, result);
+  return res.json(new ApiResponse(200, result, "Flight offers fetched"));
+});
+
 export {
   searchCities,
   getHotelsByCity,
   getHotelOffers,
   getPointsOfInterest,
   getWikipediaInfo,
+  searchLocations,
+  getFlightOffers,
 };
