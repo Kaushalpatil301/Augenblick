@@ -35,6 +35,8 @@ import {
   MessageSquare,
   LogOut,
   Trash2,
+  Search,
+  Flag,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -63,6 +65,68 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
 import TripChat from "../components/TripChat";
 import Itinerary from "../components/Itinerary";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix default Leaflet marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+const ROUTE_SHADOW =
+  "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
+const ROUTE_CM =
+  "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img";
+
+const routeOriginIcon = new L.Icon({
+  iconUrl: `${ROUTE_CM}/marker-icon-2x-green.png`,
+  shadowUrl: ROUTE_SHADOW,
+  iconSize: [30, 49],
+  iconAnchor: [15, 49],
+  popupAnchor: [1, -40],
+});
+
+const routeDestIcon = new L.Icon({
+  iconUrl: `${ROUTE_CM}/marker-icon-2x-red.png`,
+  shadowUrl: ROUTE_SHADOW,
+  iconSize: [30, 49],
+  iconAnchor: [15, 49],
+  popupAnchor: [1, -40],
+});
+
+function RouteMapClickHandler({ onPick }) {
+  useMapEvents({
+    click: (e) => {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+function RouteMapFitBounds({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length >= 2) {
+      map.fitBounds(points, { padding: [40, 40], maxZoom: 8 });
+    } else if (points.length === 1) {
+      map.flyTo(points[0], 6, { duration: 0.8 });
+    }
+  }, [points, map]);
+  return null;
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
@@ -91,6 +155,7 @@ export default function TripDetails() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [itineraryOpen, setItineraryOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   // Form states
   const [showAddForm, setShowAddForm] = useState(null);
   const [formData, setFormData] = useState({});
@@ -98,6 +163,12 @@ export default function TripDetails() {
   const [addingDest, setAddingDest] = useState(false);
   const [pickingHotel, setPickingHotel] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [placeImages, setPlaceImages] = useState({});
+  const [placeInfo, setPlaceInfo] = useState({});
+  const [expandedPlaces, setExpandedPlaces] = useState({});
+
+  const toggleExpanded = (key) =>
+    setExpandedPlaces((prev) => ({ ...prev, [key]: !prev[key] }));
 
   useEffect(() => {
     try {
@@ -110,21 +181,77 @@ export default function TripDetails() {
   // Route editing
   const [editingRoute, setEditingRoute] = useState(false);
   const [savingRoute, setSavingRoute] = useState(false);
-  const [sameAsOrigin, setSameAsOrigin] = useState(false);
   const [routeForm, setRouteForm] = useState({
-    originQuery: "",
-    destQuery: "",
     origin: null,
     mainDestination: null,
   });
-  const [routeOriginResults, setRouteOriginResults] = useState([]);
-  const [routeDestResults, setRouteDestResults] = useState([]);
-  const routeSearchTimeouts = useRef({ origin: null, dest: null });
+  const [routePickMode, setRoutePickMode] = useState("origin");
+  const [routeSearchQuery, setRouteSearchQuery] = useState("");
+  const [routeSearchResults, setRouteSearchResults] = useState([]);
+  const [routeSearchLoading, setRouteSearchLoading] = useState(false);
+  const [routeResolving, setRouteResolving] = useState(false);
+  const routeMapRef = useRef(null);
+  const routeSearchTimeout = useRef(null);
 
   useEffect(() => {
     fetchTrip();
     fetchFriends();
   }, [tripId]);
+
+  // Fetch place images and info from Wikimedia when trip loads
+  useEffect(() => {
+    if (!trip) return;
+    const places = [
+      trip.origin?.city && {
+        key: `origin`,
+        name: trip.origin.city,
+        country: trip.origin.country,
+      },
+      trip.mainDestination?.city && {
+        key: `dest`,
+        name: trip.mainDestination.city,
+        country: trip.mainDestination.country,
+      },
+      ...(trip.destinations || []).map((d) => ({
+        key: d._id,
+        name: d.city,
+        country: d.country,
+      })),
+    ].filter(Boolean);
+
+    places.forEach(async (place) => {
+      if (placeImages[place.key]) return;
+      try {
+        const searchTerm = `${place.name}${place.country ? ` ${place.country}` : ""}`;
+        // Step 1: Search Wikipedia for the best matching page title
+        const searchRes = await fetch(
+          `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&srlimit=1&format=json&origin=*`,
+        );
+        const searchData = await searchRes.json();
+        const pageTitle = searchData?.query?.search?.[0]?.title;
+        if (!pageTitle) throw new Error("No page found");
+
+        // Step 2: Get page summary with image using the exact title
+        const res = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
+        );
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        setPlaceImages((prev) => ({
+          ...prev,
+          [place.key]:
+            data.thumbnail?.source || data.originalimage?.source || null,
+        }));
+        setPlaceInfo((prev) => ({
+          ...prev,
+          [place.key]: data.extract || "",
+        }));
+      } catch {
+        setPlaceImages((prev) => ({ ...prev, [place.key]: null }));
+        setPlaceInfo((prev) => ({ ...prev, [place.key]: "" }));
+      }
+    });
+  }, [trip]);
 
   const fetchTrip = async () => {
     try {
@@ -167,76 +294,132 @@ export default function TripDetails() {
     }
   };
 
-  const handleRouteSearch = (field, q) => {
-    if (field === "origin")
-      setRouteForm((prev) => ({ ...prev, originQuery: q }));
-    else setRouteForm((prev) => ({ ...prev, destQuery: q }));
-
-    clearTimeout(routeSearchTimeouts.current[field]);
+  const handleRouteMapSearch = (q) => {
+    setRouteSearchQuery(q);
+    clearTimeout(routeSearchTimeout.current);
     if (!q.trim()) {
-      if (field === "origin") setRouteOriginResults([]);
-      else setRouteDestResults([]);
+      setRouteSearchResults([]);
       return;
     }
-    routeSearchTimeouts.current[field] = setTimeout(async () => {
+    routeSearchTimeout.current = setTimeout(async () => {
+      setRouteSearchLoading(true);
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`,
           { headers: { "Accept-Language": "en" } },
         );
         const results = await res.json();
-        if (field === "origin") setRouteOriginResults(results);
-        else setRouteDestResults(results);
-      } catch {}
+        setRouteSearchResults(results.slice(0, 5));
+      } finally {
+        setRouteSearchLoading(false);
+      }
     }, 400);
   };
 
-  const handleRouteSelect = (field, result) => {
+  const handleRouteMapSearchSelect = async (result) => {
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
-    const addr = result.address || {};
-    const city =
-      addr.city ||
-      addr.town ||
-      addr.village ||
-      result.display_name.split(",")[0];
-    const country = addr.country || "";
-    const place = { city, country, displayName: result.display_name, lat, lng };
-
-    if (field === "origin") {
-      setRouteForm((prev) => ({
-        ...prev,
-        origin: place,
-        originQuery: `${city}${country ? `, ${country}` : ""}`,
-        ...(sameAsOrigin ? { mainDestination: place } : {}),
-      }));
-      setRouteOriginResults([]);
-    } else {
-      setRouteForm((prev) => ({
-        ...prev,
-        mainDestination: place,
-        destQuery: `${city}${country ? `, ${country}` : ""}`,
-      }));
-      setRouteDestResults([]);
+    setRouteSearchResults([]);
+    setRouteSearchQuery("");
+    if (routeMapRef.current) {
+      routeMapRef.current.flyTo([lat, lng], 10, { duration: 0.8 });
+    }
+    setRouteResolving(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { "Accept-Language": "en" } },
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const city =
+        addr.city ||
+        addr.town ||
+        addr.village ||
+        addr.county ||
+        addr.state ||
+        result.display_name.split(",")[0];
+      const country = addr.country || "";
+      const place = {
+        city,
+        country,
+        displayName: result.display_name,
+        lat,
+        lng,
+      };
+      if (routePickMode === "origin") {
+        setRouteForm((prev) => ({ ...prev, origin: place }));
+        setRoutePickMode("dest");
+      } else {
+        setRouteForm((prev) => ({ ...prev, mainDestination: place }));
+      }
+    } catch {
+      // use display name as fallback
+      const city = result.display_name.split(",")[0];
+      const place = {
+        city,
+        country: "",
+        displayName: result.display_name,
+        lat,
+        lng,
+      };
+      if (routePickMode === "origin") {
+        setRouteForm((prev) => ({ ...prev, origin: place }));
+        setRoutePickMode("dest");
+      } else {
+        setRouteForm((prev) => ({ ...prev, mainDestination: place }));
+      }
+    } finally {
+      setRouteResolving(false);
     }
   };
 
-  const handleSameAsOriginToggle = (checked) => {
-    setSameAsOrigin(checked);
-    if (checked && routeForm.origin) {
-      setRouteForm((prev) => ({ ...prev, mainDestination: prev.origin }));
+  const handleRouteMapClick = async (lat, lng) => {
+    setRouteResolving(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { "Accept-Language": "en" } },
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const city =
+        addr.city ||
+        addr.town ||
+        addr.village ||
+        addr.county ||
+        addr.state ||
+        "";
+      const country = addr.country || "";
+      const place = { city, country, displayName: data.display_name, lat, lng };
+      if (routePickMode === "origin") {
+        setRouteForm((prev) => ({ ...prev, origin: place }));
+        if (!routeForm.mainDestination) setRoutePickMode("dest");
+      } else {
+        setRouteForm((prev) => ({ ...prev, mainDestination: place }));
+      }
+    } catch {
+      const fallback = {
+        city: `Lat ${lat.toFixed(3)}`,
+        country: `Lng ${lng.toFixed(3)}`,
+        displayName: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        lat,
+        lng,
+      };
+      if (routePickMode === "origin")
+        setRouteForm((prev) => ({ ...prev, origin: fallback }));
+      else setRouteForm((prev) => ({ ...prev, mainDestination: fallback }));
+    } finally {
+      setRouteResolving(false);
     }
   };
 
   const handleSaveRoute = async () => {
     setSavingRoute(true);
     try {
-      const finalDest = sameAsOrigin
-        ? routeForm.origin
-        : routeForm.mainDestination;
       await updateTripRoute(tripId, {
         origin: routeForm.origin,
-        mainDestination: finalDest,
+        mainDestination: routeForm.mainDestination,
       });
       toast.success("Route updated");
       setEditingRoute(false);
@@ -250,24 +433,15 @@ export default function TripDetails() {
 
   const openRouteEditor = () => {
     setRouteForm({
-      originQuery: trip?.origin?.city
-        ? `${trip.origin.city}${trip.origin.country ? `, ${trip.origin.country}` : ""}`
-        : "",
-      destQuery: trip?.mainDestination?.city
-        ? `${trip.mainDestination.city}${trip.mainDestination.country ? `, ${trip.mainDestination.country}` : ""}`
-        : "",
       origin: trip?.origin?.city ? trip.origin : null,
       mainDestination: trip?.mainDestination?.city
         ? trip.mainDestination
         : null,
     });
-    setSameAsOrigin(
-      !!(
-        trip?.origin?.city &&
-        trip?.mainDestination?.city &&
-        trip.origin.city === trip.mainDestination.city
-      ),
-    );
+    setRoutePickMode("origin");
+    setRouteSearchQuery("");
+    setRouteSearchResults([]);
+    setRouteResolving(false);
     setEditingRoute(true);
   };
 
@@ -387,10 +561,18 @@ export default function TripDetails() {
             </Button>
             <Button
               variant="outline"
-              className="gap-2"
-              onClick={() => setChatOpen(true)}
+              className="gap-2 relative"
+              onClick={() => {
+                setChatOpen(true);
+                setUnreadCount(0);
+              }}
             >
               <MessageSquare size={16} /> Trip Chat
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1 shadow">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Button>
 
             {trip.createdBy?._id === currentUserId ? (
@@ -536,11 +718,9 @@ export default function TripDetails() {
           </CardContent>
         </Card>
 
-        {/* Tabs for different views */}
-
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Trip Route Card */}
+          {/* Trip Route — Origin & Destination Cards */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -548,71 +728,170 @@ export default function TripDetails() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
-                    Origin
-                  </p>
-                  {trip.origin?.city ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
-                      <span className="font-medium text-sm">
-                        {trip.origin.city}
-                        {trip.origin.country ? `, ${trip.origin.country}` : ""}
-                      </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[
+                  {
+                    key: "origin",
+                    label: "Origin",
+                    labelColor: "bg-emerald-600",
+                    place: trip.origin,
+                    borderColor: "border-emerald-200",
+                    gradientFrom: "from-emerald-600",
+                  },
+                  {
+                    key: "dest",
+                    label: "Destination",
+                    labelColor: "bg-rose-600",
+                    place: trip.mainDestination,
+                    borderColor: "border-rose-200",
+                    gradientFrom: "from-rose-600",
+                  },
+                ].map(
+                  ({
+                    key,
+                    label,
+                    labelColor,
+                    place,
+                    borderColor,
+                    gradientFrom,
+                  }) => (
+                    <div
+                      key={key}
+                      className={`rounded-2xl overflow-hidden border ${borderColor} shadow-md hover:shadow-lg transition-shadow`}
+                    >
+                      {place?.city ? (
+                        <>
+                          {/* Image with overlay */}
+                          <div className="relative w-full aspect-[16/9] bg-gray-100">
+                            {placeImages[key] ? (
+                              <img
+                                src={placeImages[key]}
+                                alt={place.city}
+                                className="absolute inset-0 w-full h-full object-cover object-center"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                                <MapPin size={36} className="text-gray-300" />
+                              </div>
+                            )}
+                            {/* Gradient overlay */}
+                            <div
+                              className={`absolute inset-0 bg-gradient-to-t ${gradientFrom}/60 via-transparent to-transparent`}
+                            />
+                            {/* Badge */}
+                            <span
+                              className={`absolute top-3 left-3 ${labelColor} text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow`}
+                            >
+                              {label}
+                            </span>
+                            {/* City name overlaid at bottom */}
+                            <div className="absolute bottom-0 left-0 right-0 p-4">
+                              <h4 className="text-white font-bold text-lg drop-shadow-lg leading-tight">
+                                {place.city}
+                                {place.country ? `, ${place.country}` : ""}
+                              </h4>
+                            </div>
+                          </div>
+                          {/* Description + Show more */}
+                          {placeInfo[key] && (
+                            <div className="px-4 py-3 bg-white">
+                              <p
+                                className={`text-xs text-gray-600 leading-relaxed ${
+                                  expandedPlaces[key] ? "" : "line-clamp-2"
+                                }`}
+                              >
+                                {placeInfo[key]}
+                              </p>
+                              <button
+                                onClick={() => toggleExpanded(key)}
+                                className="mt-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                {expandedPlaces[key]
+                                  ? "Show less ▲"
+                                  : "Show more ▼"}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="p-8 text-center text-sm text-gray-400 italic bg-gray-50">
+                          {label} not set
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Not set</p>
-                  )}
-                </div>
-                <ArrowRight size={18} className="text-gray-300 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1">
-                    Main Destination
-                  </p>
-                  {trip.mainDestination?.city ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
-                      <span className="font-medium text-sm">
-                        {trip.mainDestination.city}
-                        {trip.mainDestination.country
-                          ? `, ${trip.mainDestination.country}`
-                          : ""}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">Not set</p>
-                  )}
-                </div>
+                  ),
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Destinations (Read-only) */}
+          {/* Stops / Destinations */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="text-blue-500" size={20} /> Destinations
+                <MapPin className="text-blue-500" size={20} /> Stops Along the
+                Way
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {!trip.destinations?.length ? (
-                  <p className="text-sm text-gray-500 italic">
-                    No destinations added yet.
-                  </p>
-                ) : (
-                  trip.destinations.map((dest) => (
+              {!trip.destinations?.length ? (
+                <p className="text-sm text-gray-500 italic">
+                  No stops added yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {trip.destinations.map((dest, idx) => (
                     <div
                       key={dest._id}
-                      className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium px-3 py-1.5 rounded-full"
+                      className="rounded-2xl overflow-hidden border border-blue-100 shadow-md hover:shadow-lg transition-shadow bg-white"
                     >
-                      <MapPin size={12} />
-                      {dest.city}, {dest.country}
+                      {/* Image with overlay */}
+                      <div className="relative w-full aspect-[4/3] bg-gray-100">
+                        {placeImages[dest._id] ? (
+                          <img
+                            src={placeImages[dest._id]}
+                            alt={dest.city}
+                            className="absolute inset-0 w-full h-full object-cover object-center"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                            <MapPin size={28} className="text-blue-300" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-blue-800/60 via-transparent to-transparent" />
+                        <span className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full shadow">
+                          Stop {idx + 1}
+                        </span>
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <h4 className="text-white font-bold text-sm drop-shadow-lg">
+                            {dest.city}, {dest.country}
+                          </h4>
+                        </div>
+                      </div>
+                      {/* Description + Show more */}
+                      {placeInfo[dest._id] && (
+                        <div className="px-3 py-2.5">
+                          <p
+                            className={`text-xs text-gray-600 leading-relaxed ${
+                              expandedPlaces[dest._id] ? "" : "line-clamp-2"
+                            }`}
+                          >
+                            {placeInfo[dest._id]}
+                          </p>
+                          <button
+                            onClick={() => toggleExpanded(dest._id)}
+                            className="mt-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            {expandedPlaces[dest._id]
+                              ? "Show less ▲"
+                              : "Show more ▼"}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -767,6 +1046,62 @@ export default function TripDetails() {
 
         {/* Planning Tab */}
         <TabsContent value="planning" className="space-y-6">
+          {/* Source & Destination */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Navigation className="text-indigo-500" size={20} /> Source
+                &amp; Destination
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openRouteEditor}
+                className="gap-1"
+              >
+                <Pencil size={14} /> Edit Route
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <span className="mt-0.5 w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-0.5">
+                      Source
+                    </p>
+                    {trip.origin?.city ? (
+                      <p className="text-sm font-semibold text-gray-800">
+                        {trip.origin.city}
+                        {trip.origin.country ? `, ${trip.origin.country}` : ""}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Not set</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-rose-50 rounded-xl border border-rose-200">
+                  <span className="mt-0.5 w-3 h-3 rounded-full bg-rose-500 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 mb-0.5">
+                      Destination
+                    </p>
+                    {trip.mainDestination?.city ? (
+                      <p className="text-sm font-semibold text-gray-800">
+                        {trip.mainDestination.city}
+                        {trip.mainDestination.country
+                          ? `, ${trip.mainDestination.country}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Not set</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Destinations */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -1003,101 +1338,227 @@ export default function TripDetails() {
           if (!o) setEditingRoute(false);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Set Trip Route</DialogTitle>
+            <DialogTitle>Edit Trip Route</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
-            {/* Origin */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
-                Origin (Departure City)
-              </label>
-              <div className="relative">
-                <Input
-                  placeholder="e.g. New York, USA"
-                  value={routeForm.originQuery}
-                  onChange={(e) => handleRouteSearch("origin", e.target.value)}
-                />
-                {routeOriginResults.length > 0 && (
-                  <div className="absolute z-[9999] top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                    {routeOriginResults.map((r) => (
-                      <button
-                        key={r.place_id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b last:border-0 truncate"
-                        onClick={() => handleRouteSelect("origin", r)}
-                      >
-                        {r.display_name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {routeForm.origin?.city && (
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <Check size={11} /> {routeForm.origin.city},{" "}
-                  {routeForm.origin.country}
-                </p>
+          <div className="space-y-3 mt-2">
+            {/* Mode selector */}
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                type="button"
+                size="sm"
+                variant={routePickMode === "origin" ? "default" : "outline"}
+                className={
+                  routePickMode === "origin"
+                    ? "gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                    : "gap-1.5"
+                }
+                onClick={() => setRoutePickMode("origin")}
+              >
+                <Navigation size={14} />
+                Source
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={routePickMode === "dest" ? "default" : "outline"}
+                className={
+                  routePickMode === "dest"
+                    ? "gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+                    : "gap-1.5"
+                }
+                onClick={() => setRoutePickMode("dest")}
+              >
+                <Flag size={14} />
+                Destination
+              </Button>
+            </div>
+
+            {/* Route summary bar */}
+            <div className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100 min-h-[36px]">
+              {routeForm.origin ? (
+                <span className="flex items-center gap-1.5 text-green-700 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shrink-0" />
+                  {routeForm.origin.city || "Origin"}
+                  <button
+                    onClick={() =>
+                      setRouteForm((prev) => ({ ...prev, origin: null }))
+                    }
+                    className="text-green-400 hover:text-red-500 ml-0.5"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ) : (
+                <span className="text-gray-400 italic">
+                  Click map to set source
+                </span>
+              )}
+              <span className="border-t border-dashed border-gray-300 flex-1 mx-1" />
+              {routeForm.mainDestination ? (
+                <span className="flex items-center gap-1.5 text-red-700 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0" />
+                  {routeForm.mainDestination.city || "Destination"}
+                  <button
+                    onClick={() =>
+                      setRouteForm((prev) => ({
+                        ...prev,
+                        mainDestination: null,
+                      }))
+                    }
+                    className="text-red-400 hover:text-red-600 ml-0.5"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ) : (
+                <span className="text-gray-400 italic">No destination set</span>
               )}
             </div>
 
-            {/* Same as origin checkbox */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="sameAsOrigin"
-                checked={sameAsOrigin}
-                onChange={(e) => handleSameAsOriginToggle(e.target.checked)}
-                className="rounded"
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder={`Search for a city to set as ${routePickMode === "origin" ? "source" : "destination"}...`}
+                className="pl-9"
+                value={routeSearchQuery}
+                onChange={(e) => handleRouteMapSearch(e.target.value)}
               />
-              <label
-                htmlFor="sameAsOrigin"
-                className="text-sm text-gray-600 cursor-pointer"
-              >
-                Main destination is same as origin
-              </label>
+              {routeSearchLoading && (
+                <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-gray-400" />
+              )}
+              {routeSearchResults.length > 0 && (
+                <div className="absolute z-[9999] top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                  {routeSearchResults.map((r) => (
+                    <button
+                      key={r.place_id}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b last:border-0 truncate"
+                      onClick={() => handleRouteMapSearchSelect(r)}
+                    >
+                      {r.display_name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Destination */}
-            {!sameAsOrigin && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
-                  Main Destination
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="e.g. Paris, France"
-                    value={routeForm.destQuery}
-                    onChange={(e) => handleRouteSearch("dest", e.target.value)}
-                  />
-                  {routeDestResults.length > 0 && (
-                    <div className="absolute z-[9999] top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                      {routeDestResults.map((r) => (
-                        <button
-                          key={r.place_id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b last:border-0 truncate"
-                          onClick={() => handleRouteSelect("dest", r)}
-                        >
-                          {r.display_name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {routeForm.mainDestination?.city && (
-                  <p className="text-xs text-red-600 flex items-center gap-1">
-                    <Check size={11} /> {routeForm.mainDestination.city},{" "}
-                    {routeForm.mainDestination.country}
-                  </p>
-                )}
-              </div>
-            )}
+            <p className="text-xs text-gray-500">
+              Click on the map or search above.{" "}
+              <strong className="text-gray-700">
+                Mode:{" "}
+                {routePickMode === "origin"
+                  ? "Setting Source"
+                  : "Setting Destination"}
+              </strong>
+            </p>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Map */}
+            <div
+              className="relative rounded-lg overflow-hidden border border-gray-200"
+              style={{ height: 380 }}
+            >
+              {routeResolving && (
+                <div className="absolute inset-0 z-[9998] bg-white/50 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-blue-500" size={28} />
+                </div>
+              )}
+              <MapContainer
+                center={[
+                  routeForm.origin?.lat || routeForm.mainDestination?.lat || 20,
+                  routeForm.origin?.lng || routeForm.mainDestination?.lng || 0,
+                ]}
+                zoom={routeForm.origin || routeForm.mainDestination ? 5 : 2}
+                style={{ height: "100%", width: "100%" }}
+                ref={routeMapRef}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <RouteMapClickHandler onPick={handleRouteMapClick} />
+                {(routeForm.origin || routeForm.mainDestination) && (
+                  <RouteMapFitBounds
+                    points={[
+                      ...(routeForm.origin
+                        ? [[routeForm.origin.lat, routeForm.origin.lng]]
+                        : []),
+                      ...(routeForm.mainDestination
+                        ? [
+                            [
+                              routeForm.mainDestination.lat,
+                              routeForm.mainDestination.lng,
+                            ],
+                          ]
+                        : []),
+                    ]}
+                  />
+                )}
+
+                {/* Origin marker */}
+                {routeForm.origin && (
+                  <Marker
+                    position={[routeForm.origin.lat, routeForm.origin.lng]}
+                    icon={routeOriginIcon}
+                  >
+                    <Popup>
+                      <strong className="text-green-700">Source:</strong>{" "}
+                      {routeForm.origin.city}, {routeForm.origin.country}
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Destination marker */}
+                {routeForm.mainDestination && (
+                  <Marker
+                    position={[
+                      routeForm.mainDestination.lat,
+                      routeForm.mainDestination.lng,
+                    ]}
+                    icon={routeDestIcon}
+                  >
+                    <Popup>
+                      <strong className="text-red-700">Destination:</strong>{" "}
+                      {routeForm.mainDestination.city},{" "}
+                      {routeForm.mainDestination.country}
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Route polyline */}
+                {routeForm.origin && routeForm.mainDestination && (
+                  <Polyline
+                    positions={[
+                      [routeForm.origin.lat, routeForm.origin.lng],
+                      [
+                        routeForm.mainDestination.lat,
+                        routeForm.mainDestination.lng,
+                      ],
+                    ]}
+                    pathOptions={{
+                      color: "#3b82f6",
+                      weight: 3,
+                      dashArray: "8 6",
+                      opacity: 0.7,
+                    }}
+                  />
+                )}
+              </MapContainer>
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500" /> Source
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500" /> Destination
+              </span>
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex justify-end gap-2 pt-1">
               <Button
                 variant="ghost"
                 type="button"
@@ -1150,9 +1611,21 @@ export default function TripDetails() {
       </Dialog>
 
       {/* Chat Dialog */}
-      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+      <Dialog
+        open={chatOpen}
+        onOpenChange={(open) => {
+          setChatOpen(open);
+          if (open) setUnreadCount(0);
+        }}
+      >
         <DialogContent className="max-w-md h-[600px] p-0 overflow-hidden">
-          <TripChat tripId={trip._id} members={trip.members} />
+          <TripChat
+            tripId={trip._id}
+            members={trip.members}
+            onNewMessage={() => {
+              if (!chatOpen) setUnreadCount((c) => c + 1);
+            }}
+          />
         </DialogContent>
       </Dialog>
 

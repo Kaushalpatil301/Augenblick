@@ -12,7 +12,7 @@ const SOCKET_URL =
   import.meta.env.VITE_SERVER_URL?.replace("/api/v1/", "") ||
   "http://localhost:8000";
 
-export default function TripChat({ tripId, members }) {
+export default function TripChat({ tripId, members, onNewMessage }) {
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
@@ -57,6 +57,23 @@ export default function TripChat({ tripId, members }) {
 
     newSocket.on("receive_message", (message) => {
       setMessages((prev) => [...prev, message]);
+      // Notify parent about incoming messages from others
+      const storedUser = (() => {
+        try {
+          const s = JSON.parse(localStorage.getItem("user"));
+          return s?.data?.user || s?.user || s;
+        } catch {
+          return null;
+        }
+      })();
+      const myId = storedUser?._id;
+      const senderId =
+        typeof message.sender === "object"
+          ? message.sender?._id
+          : message.sender;
+      if (!message.isSystem && senderId !== myId) {
+        onNewMessage?.();
+      }
     });
 
     return () => newSocket.close();
