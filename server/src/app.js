@@ -51,6 +51,20 @@ app.get("/test", (req, res) => {
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";
+
+  // Log all 5xx errors (unexpected) with full stack; 4xx are client mistakes — only log in dev
+  if (statusCode >= 500) {
+    console.error(
+      `[ERROR] ${req.method} ${req.originalUrl} → ${statusCode}`,
+      "\n",
+      err.stack || err,
+    );
+  } else if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[WARN]  ${req.method} ${req.originalUrl} → ${statusCode}: ${message}`,
+    );
+  }
+
   res.status(statusCode).json({
     success: false,
     statusCode,

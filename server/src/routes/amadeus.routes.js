@@ -4,6 +4,7 @@ import {
   getHotelsByCity,
   getHotelOffers,
   getPointsOfInterest,
+  getWikipediaInfo,
 } from "../controllers/amadeus.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -15,5 +16,6 @@ router.get("/cities", searchCities);
 router.get("/hotels", getHotelsByCity);
 router.get("/hotel-offers", getHotelOffers);
 router.get("/pois", getPointsOfInterest);
+router.get("/wiki", getWikipediaInfo);
 
 export default router;

@@ -222,13 +222,15 @@ export default function TripDetails() {
       })),
     ].filter(Boolean);
 
-    places.forEach(async (place) => {
-      if (placeImages[place.key]) return;
-      const searchTerm = `${place.name}${place.country ? ` ${place.country}` : ""}`;
-      const info = await fetchWikipediaInfo(searchTerm);
-      setPlaceImages((prev) => ({ ...prev, [place.key]: info.image }));
-      setPlaceInfo((prev) => ({ ...prev, [place.key]: info.description }));
-    });
+    (async () => {
+      for (const place of places) {
+        if (placeImages[place.key]) continue;
+        const searchTerm = `${place.name}${place.country ? ` ${place.country}` : ""}`;
+        const info = await fetchWikipediaInfo(searchTerm);
+        setPlaceImages((prev) => ({ ...prev, [place.key]: info.image }));
+        setPlaceInfo((prev) => ({ ...prev, [place.key]: info.description }));
+      }
+    })();
   }, [trip]);
 
   const fetchTrip = async () => {

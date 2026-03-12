@@ -142,8 +142,8 @@ export default function AttractionPicker({
         });
         setAdded(addedMap);
 
-        // Fetch images from Wikipedia for each attraction
-        allPois.forEach((poi) => fetchImage(poi));
+        // Fetch images in parallel
+        await Promise.all(allPois.map((poi) => fetchImage(poi)));
       } catch (err) {
         setError("Failed to load attractions. Please try again.");
       } finally {

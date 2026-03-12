@@ -20,3 +20,6 @@ export const getPointsOfInterest = (latitude, longitude, radius = 10000) =>
   api.get(
     `/amadeus/pois?latitude=${latitude}&longitude=${longitude}&radius=${radius}`,
   );
+
+export const getWikiInfo = (searchTerm) =>
+  api.get(`/amadeus/wiki?q=${encodeURIComponent(searchTerm)}`);

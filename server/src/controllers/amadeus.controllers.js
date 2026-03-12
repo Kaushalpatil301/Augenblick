@@ -1,6 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
+import { WikiCache } from "../models/wikiCache.models.js";
+import { PoiCache } from "../models/poiCache.models.js";
 
 const AMADEUS_BASE = "https://test.api.amadeus.com";
 
@@ -37,6 +39,9 @@ async function getAmadeusToken() {
   const clientSecret = process.env.AMADEUS_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
+    console.error(
+      "[Amadeus] Missing AMADEUS_CLIENT_ID or AMADEUS_CLIENT_SECRET env vars",
+    );
     throw new ApiError(503, "Amadeus API credentials not configured");
   }
 
@@ -53,6 +58,8 @@ async function getAmadeusToken() {
   });
 
   if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[Amadeus] Token fetch failed — HTTP ${res.status}:`, body);
     throw new ApiError(502, "Failed to authenticate with Amadeus API");
   }
 
@@ -61,7 +68,11 @@ async function getAmadeusToken() {
     token: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000,
   };
-
+  console.log(
+    "[Amadeus] Access token refreshed, expires in",
+    data.expires_in,
+    "s",
+  );
   return _tokenCache.token;
 }
 
@@ -86,10 +97,11 @@ const searchCities = asyncHandler(async (req, res) => {
 
   if (!apiRes.ok) {
     const err = await apiRes.json().catch(() => ({}));
-    throw new ApiError(
-      apiRes.status,
-      err?.errors?.[0]?.detail || "City search failed",
+    const detail = err?.errors?.[0]?.detail || "City search failed";
+    console.error(
+      `[Amadeus] searchCities failed — HTTP ${apiRes.status} — keyword: "${keyword}" — ${detail}`,
     );
+    throw new ApiError(apiRes.status, detail);
   }
 
   const data = await apiRes.json();
@@ -119,10 +131,11 @@ const getHotelsByCity = asyncHandler(async (req, res) => {
 
   if (!apiRes.ok) {
     const err = await apiRes.json().catch(() => ({}));
-    throw new ApiError(
-      apiRes.status,
-      err?.errors?.[0]?.detail || "Hotel search failed",
+    const detail = err?.errors?.[0]?.detail || "Hotel search failed";
+    console.error(
+      `[Amadeus] getHotelsByCity failed — HTTP ${apiRes.status} — cityCode: ${cityCode} — ${detail}`,
     );
+    throw new ApiError(apiRes.status, detail);
   }
 
   const data = await apiRes.json();
@@ -164,10 +177,11 @@ const getHotelOffers = asyncHandler(async (req, res) => {
 
   if (!apiRes.ok) {
     const err = await apiRes.json().catch(() => ({}));
-    throw new ApiError(
-      apiRes.status,
-      err?.errors?.[0]?.detail || "Hotel offers fetch failed",
+    const detail = err?.errors?.[0]?.detail || "Hotel offers fetch failed";
+    console.error(
+      `[Amadeus] getHotelOffers failed — HTTP ${apiRes.status} — hotelIds: ${hotelIds} — ${detail}`,
     );
+    throw new ApiError(apiRes.status, detail);
   }
 
   const data = await apiRes.json();
@@ -194,6 +208,19 @@ const getPointsOfInterest = asyncHandler(async (req, res) => {
       new ApiResponse(200, cached, "Points of interest fetched (cached)"),
     );
 
+  // Check MongoDB cache
+  const dbCached = await PoiCache.findOne({ key: cacheKey });
+  if (dbCached) {
+    setCache(cacheKey, dbCached.pois);
+    return res.json(
+      new ApiResponse(
+        200,
+        dbCached.pois,
+        "Points of interest fetched (db cached)",
+      ),
+    );
+  }
+
   const query = [
     "[out:json][timeout:25];",
     "(",
@@ -205,11 +232,7 @@ const getPointsOfInterest = asyncHandler(async (req, res) => {
   ].join("\n");
 
   console.log(
-    "[POI] Querying Overpass for",
-    latitude,
-    longitude,
-    "radius",
-    radius,
+    `[POI] Querying Overpass — lat:${lat} lng:${lng} radius:${radius}`,
   );
   const apiRes = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
@@ -220,18 +243,20 @@ const getPointsOfInterest = asyncHandler(async (req, res) => {
     body: "data=" + encodeURIComponent(query),
   });
 
-  console.log("[POI] Overpass response status:", apiRes.status);
   if (!apiRes.ok) {
+    const body = await apiRes.text().catch(() => "");
+    console.error(
+      `[POI] Overpass API failed — HTTP ${apiRes.status}:`,
+      body.slice(0, 300),
+    );
     throw new ApiError(apiRes.status, "Overpass POI search failed");
   }
 
   const data = await apiRes.json();
   const elements = data.elements || [];
+  const named = elements.filter((e) => e.tags?.name);
   console.log(
-    "[POI] Raw elements:",
-    elements.length,
-    "Named:",
-    elements.filter((e) => e.tags?.name).length,
+    `[POI] Overpass returned ${elements.length} elements, ${named.length} with names`,
   );
 
   // Map to a consistent POI shape
@@ -270,7 +295,123 @@ const getPointsOfInterest = asyncHandler(async (req, res) => {
     });
 
   setCache(cacheKey, pois);
+
+  // Also persist to MongoDB
+  await PoiCache.findOneAndUpdate(
+    { key: cacheKey },
+    { key: cacheKey, pois },
+    { upsert: true },
+  ).catch((err) =>
+    console.error("[POI] MongoDB cache write failed:", err.message),
+  );
+
   return res.json(new ApiResponse(200, pois, "Points of interest fetched"));
 });
 
-export { searchCities, getHotelsByCity, getHotelOffers, getPointsOfInterest };
+// GET /api/v1/amadeus/wiki?q=Taj+Mahal+Mumbai
+const getWikipediaInfo = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.trim().length < 2) {
+    throw new ApiError(400, "q query param required (min 2 chars)");
+  }
+
+  const cacheKey = q.trim().toLowerCase();
+
+  // Check MongoDB cache first
+  const dbCached = await WikiCache.findOne({ key: cacheKey });
+  if (dbCached && dbCached.image) {
+    return res.json(
+      new ApiResponse(
+        200,
+        { image: dbCached.image, description: dbCached.description },
+        "Wiki info (cached)",
+      ),
+    );
+  }
+
+  // Check in-memory cache
+  const memCached = getCached(`wiki:${cacheKey}`);
+  if (memCached && memCached.image) {
+    return res.json(new ApiResponse(200, memCached, "Wiki info (mem cached)"));
+  }
+
+  try {
+    // Single search call — no fallbacks to avoid burning rate limits
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=1&format=json`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { "User-Agent": "TripApp/1.0 (travel planning app)" },
+    });
+    if (!searchRes.ok) {
+      return res.json(
+        new ApiResponse(
+          200,
+          { image: null, description: "" },
+          "Wikipedia unavailable",
+        ),
+      );
+    }
+    const searchData = await searchRes.json();
+    const pageTitle = searchData?.query?.search?.[0]?.title;
+
+    if (!pageTitle) {
+      return res.json(
+        new ApiResponse(
+          200,
+          { image: null, description: "" },
+          "No wiki page found",
+        ),
+      );
+    }
+
+    // Get image + description in one request (pageimages + extracts)
+    const infoUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=600&exintro=1&explaintext=1&format=json`;
+    const infoRes = await fetch(infoUrl, {
+      headers: { "User-Agent": "TripApp/1.0 (travel planning app)" },
+    });
+    if (!infoRes.ok) {
+      return res.json(
+        new ApiResponse(
+          200,
+          { image: null, description: "" },
+          "Wikipedia unavailable",
+        ),
+      );
+    }
+    const infoData = await infoRes.json();
+    const page = Object.values(infoData?.query?.pages || {})[0];
+
+    const image = page?.thumbnail?.source || null;
+    const result = { image, description: page?.extract || "" };
+
+    // Only cache if we got a valid image
+    if (image) {
+      setCache(`wiki:${cacheKey}`, result);
+      await WikiCache.findOneAndUpdate(
+        { key: cacheKey },
+        { key: cacheKey, image, description: result.description },
+        { upsert: true },
+      ).catch((err) =>
+        console.error("[Wiki] MongoDB cache write failed:", err.message),
+      );
+    }
+
+    return res.json(new ApiResponse(200, result, "Wiki info fetched"));
+  } catch (err) {
+    console.error("[Wiki] Error fetching info for:", q, err.message);
+    return res.json(
+      new ApiResponse(
+        200,
+        { image: null, description: "" },
+        "Wiki fetch failed",
+      ),
+    );
+  }
+});
+
+export {
+  searchCities,
+  getHotelsByCity,
+  getHotelOffers,
+  getPointsOfInterest,
+  getWikipediaInfo,
+};
