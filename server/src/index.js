@@ -30,7 +30,9 @@ io.on("connection", (socket) => {
       console.log(`Socket ${socket.id} joined trip ${tripId}`);
 
       try {
-        const history = await Message.find({ tripId }).sort({ createdAt: 1 }).populate("sender", "username avatar");
+        const history = await Message.find({ tripId })
+          .sort({ createdAt: 1 })
+          .populate("sender", "username avatar");
         socket.emit("chat_history", history);
       } catch (err) {
         console.error("Error fetching chat history", err);
@@ -42,12 +44,11 @@ io.on("connection", (socket) => {
     try {
       const newMessage = new Message({
         tripId: data.tripId,
-        sender: data.sender._id || data.sender, 
+        sender: data.sender._id || data.sender,
         text: data.text,
       });
       await newMessage.save();
 
-      
       io.to(data.tripId).emit("receive_message", {
         ...data,
         _id: newMessage._id,
@@ -78,6 +79,28 @@ io.on("connection", (socket) => {
       });
     } catch (err) {
       console.error("Error saving system message", err);
+    }
+  });
+
+  socket.on("end_voice_chat", async (data) => {
+    try {
+      const newMessage = new Message({
+        tripId: data.tripId,
+        sender: data.sender._id || data.sender,
+        text: `${data.username || "A user"} ended the voice planning session.`,
+        isSystem: true,
+      });
+      await newMessage.save();
+
+      io.to(data.tripId).emit("receive_message", {
+        ...data,
+        _id: newMessage._id,
+        text: newMessage.text,
+        isSystem: true,
+        createdAt: newMessage.createdAt,
+      });
+    } catch (err) {
+      console.error("Error saving end voice message", err);
     }
   });
 

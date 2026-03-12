@@ -243,6 +243,49 @@ const getTripMessages = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, messages, "Messages fetched successfully"));
 });
 
+const leaveTrip = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) throw new ApiError(404, "Trip not found or you are not a member");
+
+  if (trip.createdBy.toString() === userId.toString()) {
+    throw new ApiError(
+      400,
+      "Trip creator cannot leave. Delete the trip instead.",
+    );
+  }
+
+  trip.members = trip.members.filter(
+    (id) => id.toString() !== userId.toString(),
+  );
+  await trip.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "You have left the trip"));
+});
+
+const deleteTrip = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId });
+  if (!trip) throw new ApiError(404, "Trip not found");
+
+  if (trip.createdBy.toString() !== userId.toString()) {
+    throw new ApiError(403, "Only the trip creator can delete this trip");
+  }
+
+  await Message.deleteMany({ tripId });
+  await Trip.findByIdAndDelete(tripId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Trip deleted successfully"));
+});
+
 export {
   createTrip,
   getUserTrips,
@@ -255,4 +298,6 @@ export {
   respondToTripInvitation,
   updateTripRoute,
   getTripMessages,
+  leaveTrip,
+  deleteTrip,
 };

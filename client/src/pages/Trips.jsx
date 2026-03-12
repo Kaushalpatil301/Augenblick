@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserTrips } from "../api/trips";
+import { getUserTrips, leaveTrip, deleteTrip } from "../api/trips";
 import CreateTrip from "../components/CreateTrip";
-import { MapPin, CalendarDays, DollarSign, Users } from "lucide-react";
+import {
+  MapPin,
+  CalendarDays,
+  DollarSign,
+  Users,
+  LogOut,
+  Trash2,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -15,7 +23,16 @@ function formatDate(dateStr) {
 export default function Trips() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      const user = storedUser?.data?.user || storedUser?.user || storedUser;
+      setCurrentUserId(user?._id);
+    } catch {}
+  }, []);
 
   const fetchTrips = async () => {
     setLoading(true);
@@ -26,6 +43,35 @@ export default function Trips() {
       console.error("Error fetching trips:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLeaveTrip = async (e, tripId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to leave this trip?")) return;
+    try {
+      await leaveTrip(tripId);
+      toast.success("You have left the trip");
+      fetchTrips();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to leave trip");
+    }
+  };
+
+  const handleDeleteTrip = async (e, tripId) => {
+    e.stopPropagation();
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this trip? This cannot be undone.",
+      )
+    )
+      return;
+    try {
+      await deleteTrip(tripId);
+      toast.success("Trip deleted");
+      fetchTrips();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete trip");
     }
   };
 
@@ -101,8 +147,27 @@ export default function Trips() {
                   </span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-                Created by {trip.createdBy?.username}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-400">
+                  Created by {trip.createdBy?.username}
+                </span>
+                {trip.createdBy?._id === currentUserId ? (
+                  <button
+                    onClick={(e) => handleDeleteTrip(e, trip._id)}
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-md transition-colors"
+                    title="Delete Trip"
+                  >
+                    <Trash2 size={12} /> Delete
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => handleLeaveTrip(e, trip._id)}
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-md transition-colors"
+                    title="Leave Trip"
+                  >
+                    <LogOut size={12} /> Leave
+                  </button>
+                )}
               </div>
             </div>
           ))}

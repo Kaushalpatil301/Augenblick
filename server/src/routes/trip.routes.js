@@ -11,6 +11,8 @@ import {
   respondToTripInvitation,
   updateTripRoute,
   getTripMessages,
+  leaveTrip,
+  deleteTrip,
 } from "../controllers/trip.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -29,5 +31,7 @@ router.post("/:tripId/invite", inviteToTrip);
 router.post("/:tripId/respond", respondToTripInvitation);
 router.patch("/:tripId/route", updateTripRoute);
 router.get("/:tripId/messages", getTripMessages);
+router.post("/:tripId/leave", leaveTrip);
+router.delete("/:tripId", deleteTrip);
 
 export default router;

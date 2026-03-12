@@ -7,6 +7,8 @@ import {
   addDestination,
   removeDestination,
   updateTripRoute,
+  leaveTrip,
+  deleteTrip,
 } from "../api/trips";
 import { getFriends } from "../api/friends";
 import DestinationMapPicker from "../components/DestinationMapPicker";
@@ -31,6 +33,8 @@ import {
   Pencil,
   Loader2,
   MessageSquare,
+  LogOut,
+  Trash2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -93,6 +97,15 @@ export default function TripDetails() {
   const [destForm, setDestForm] = useState({ city: "", country: "" });
   const [addingDest, setAddingDest] = useState(false);
   const [pickingHotel, setPickingHotel] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      const user = storedUser?.data?.user || storedUser?.user || storedUser;
+      setCurrentUserId(user?._id);
+    } catch {}
+  }, []);
 
   // Route editing
   const [editingRoute, setEditingRoute] = useState(false);
@@ -290,6 +303,33 @@ export default function TripDetails() {
     }
   };
 
+  const handleLeaveTrip = async () => {
+    if (!window.confirm("Are you sure you want to leave this trip?")) return;
+    try {
+      await leaveTrip(tripId);
+      toast.success("You have left the trip");
+      navigate("/dashboard/trips");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to leave trip");
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this trip? This cannot be undone.",
+      )
+    )
+      return;
+    try {
+      await deleteTrip(tripId);
+      toast.success("Trip deleted");
+      navigate("/dashboard/trips");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete trip");
+    }
+  };
+
   const handleInviteFriend = async (friendId) => {
     try {
       await inviteToTrip(tripId, friendId);
@@ -352,6 +392,24 @@ export default function TripDetails() {
             >
               <MessageSquare size={16} /> Trip Chat
             </Button>
+
+            {trip.createdBy?._id === currentUserId ? (
+              <Button
+                variant="outline"
+                className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                onClick={handleDeleteTrip}
+              >
+                <Trash2 size={16} /> Delete Trip
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                onClick={handleLeaveTrip}
+              >
+                <LogOut size={16} /> Leave Trip
+              </Button>
+            )}
 
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
               <DialogTrigger asChild>

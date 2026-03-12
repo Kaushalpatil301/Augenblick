@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
-import { Send, MessageSquare, Bot, Mic } from "lucide-react";
+import { Send, MessageSquare, Bot, Mic, MicOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Input } from "./ui/input";
@@ -119,6 +119,15 @@ export default function TripChat({ tripId, members }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, idx) => {
           if (msg.isSystem) {
+            const isEndedMsg = msg.text?.toLowerCase().includes("ended");
+            // For "started" messages, check if any later message in the list ended the session
+            const isSessionOver =
+              isEndedMsg ||
+              messages
+                .slice(idx + 1)
+                .some(
+                  (m) => m.isSystem && m.text?.toLowerCase().includes("ended"),
+                );
             return (
               <motion.div
                 key={msg._id || idx}
@@ -126,21 +135,51 @@ export default function TripChat({ tripId, members }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-center my-4"
               >
-                <div className="flex flex-col items-center justify-center gap-2 bg-indigo-50 px-6 py-3 rounded-3xl border border-indigo-100 shadow-sm max-w-[85%]">
-                  <div className="flex items-center gap-2 text-indigo-800 text-sm font-medium">
-                    <div className="p-1.5 bg-indigo-100 rounded-full text-indigo-600 animate-pulse">
-                      <Mic size={14} />
+                <div
+                  className={`flex flex-col items-center justify-center gap-2 px-6 py-3 rounded-3xl border shadow-sm max-w-[85%] ${
+                    isSessionOver
+                      ? "bg-gray-50 border-gray-200"
+                      : "bg-indigo-50 border-indigo-100"
+                  }`}
+                >
+                  <div
+                    className={`flex items-center gap-2 text-sm font-medium ${
+                      isSessionOver ? "text-gray-600" : "text-indigo-800"
+                    }`}
+                  >
+                    <div
+                      className={`p-1.5 rounded-full ${
+                        isSessionOver
+                          ? "bg-gray-200 text-gray-500"
+                          : "bg-indigo-100 text-indigo-600 animate-pulse"
+                      }`}
+                    >
+                      {isSessionOver ? <MicOff size={14} /> : <Mic size={14} />}
                     </div>
                     <span>{msg.text}</span>
                   </div>
-                  <button
-                    onClick={() =>
-                      window.open(`/dashboard/voice/${tripId}`, "_blank")
-                    }
-                    className="text-xs font-semibold px-4 py-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-sm"
-                  >
-                    Join
-                  </button>
+                  {isSessionOver ? (
+                    <span className="text-xs font-semibold px-4 py-1.5 bg-gray-300 text-gray-600 rounded-full cursor-default">
+                      Ended
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        window.open(`/dashboard/voice/${tripId}`, "_blank")
+                      }
+                      className="text-xs font-semibold px-4 py-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      Join
+                    </button>
+                  )}
+                  {msg.createdAt && (
+                    <span className="text-[10px] text-gray-400 mt-1">
+                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
                 </div>
               </motion.div>
             );
@@ -186,6 +225,16 @@ export default function TripChat({ tripId, members }) {
                   </p>
                 )}
                 <p>{msg.text}</p>
+                {msg.createdAt && (
+                  <p
+                    className={`text-[10px] mt-1 ${isMe ? "text-indigo-200" : "text-gray-400"}`}
+                  >
+                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                )}
               </div>
             </motion.div>
           );
