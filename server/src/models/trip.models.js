@@ -1,5 +1,17 @@
 import mongoose, { Schema } from "mongoose";
 
+const transportSchema = new Schema(
+  {
+    type: { type: String }, // Flight, Train, Bus, etc.
+    details: { type: String },
+    departureTime: { type: Date },
+    arrivalTime: { type: Date },
+    priceTotal: { type: String },
+    priceCurrency: { type: String },
+  },
+  { _id: false },
+);
+
 const tripSchema = new Schema(
   {
     name: {
@@ -76,14 +88,7 @@ const tripSchema = new Schema(
         checkOut: Date,
       },
     ],
-    transport: [
-      {
-        type: String, // Flight, Train, Bus, etc.
-        details: String,
-        departureTime: Date,
-        arrivalTime: Date,
-      },
-    ],
+    transport: [transportSchema],
     dining: [
       {
         restaurantName: String,

@@ -92,7 +92,19 @@ const updateTripDetails = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid update type");
   }
 
-  trip[type].push(data);
+  if (type === "transport") {
+    const payload = {
+      type: data?.type || "Flight",
+      details: data?.details || "Demo route",
+      departureTime: data?.departureTime || null,
+      arrivalTime: data?.arrivalTime || null,
+      priceTotal: data?.priceTotal ? String(data.priceTotal) : null,
+      priceCurrency: data?.priceCurrency || "INR",
+    };
+    trip.transport.push(payload);
+  } else {
+    trip[type].push(data);
+  }
   await trip.save();
 
   return res

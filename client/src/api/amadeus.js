@@ -3,6 +3,14 @@ import api from "./axios";
 export const searchAmadeusCities = (keyword) =>
   api.get(`/amadeus/cities?keyword=${encodeURIComponent(keyword)}`);
 
+export const searchAmadeusLocations = (keyword) =>
+  api.get(`/amadeus/locations?keyword=${encodeURIComponent(keyword)}`);
+
+export const getFlightOffers = (originCode, destinationCode, departureDate, adults = 1) =>
+  api.get(
+    `/amadeus/flight-offers?originCode=${originCode}&destinationCode=${destinationCode}&departureDate=${departureDate}&adults=${adults}`,
+  );
+
 export const getHotelsByCity = (cityCode) =>
   api.get(`/amadeus/hotels?cityCode=${encodeURIComponent(cityCode)}`);
 

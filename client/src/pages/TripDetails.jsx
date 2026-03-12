@@ -14,6 +14,7 @@ import { getFriends } from "../api/friends";
 import DestinationMapPicker from "../components/DestinationMapPicker";
 import HotelPicker from "../components/HotelPicker";
 import AttractionPicker from "../components/AttractionPicker";
+import FlightPicker from "../components/FlightPicker";
 import TripMap from "../components/TripMap";
 import { fetchWikipediaInfo } from "../lib/wikiCache";
 import {
@@ -452,6 +453,17 @@ export default function TripDetails() {
     } catch {
       toast.error("Failed to add attraction");
       throw new Error("Failed to add attraction");
+    }
+  };
+
+  const handleAddTransport = async (transportData) => {
+    try {
+      await updateTripDetails(tripId, "transport", transportData);
+      toast.success("Transport added successfully");
+      setShowAddForm(null);
+      fetchTrip();
+    } catch (error) {
+      toast.error("Failed to add transport");
     }
   };
 
@@ -1277,6 +1289,12 @@ export default function TripDetails() {
                         Dep: {formatDateTime(trans.departureTime)} | Arr:{" "}
                         {formatDateTime(trans.arrivalTime)}
                       </p>
+                      {trans.priceTotal && (
+                        <p className="text-xs font-semibold text-green-700 mt-1">
+                          ₹{Math.round(Number(trans.priceTotal))}{" "}
+                          {trans.priceCurrency || "INR"}
+                        </p>
+                      )}
                     </div>
                   ))
                 )}
@@ -1641,126 +1659,115 @@ export default function TripDetails() {
 
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>
-        <DialogContent>
+        <DialogContent
+          className={showAddForm === "transport" ? "sm:max-w-2xl" : ""}
+        >
           <DialogHeader>
             <DialogTitle className="capitalize">Add {showAddForm}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddDetail} className="space-y-4">
-            {showAddForm === "attractions" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input name="name" required onChange={handleInputChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Input
-                    name="location"
-                    required
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" name="date" onChange={handleInputChange} />
-                </div>
-              </>
-            )}
-            {showAddForm === "accommodations" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Hotel/Place Name</Label>
-                  <Input name="name" required onChange={handleInputChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Address</Label>
-                  <Input name="address" required onChange={handleInputChange} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+
+          {showAddForm === "transport" ? (
+            <FlightPicker
+              trip={trip}
+              onAdd={handleAddTransport}
+              onClose={() => setShowAddForm(null)}
+            />
+          ) : (
+            <form onSubmit={handleAddDetail} className="space-y-4">
+              {showAddForm === "attractions" && (
+                <>
                   <div className="space-y-2">
-                    <Label>Check-in</Label>
+                    <Label>Name</Label>
+                    <Input name="name" required onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      name="location"
+                      required
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date</Label>
                     <Input
                       type="date"
-                      name="checkIn"
+                      name="date"
                       onChange={handleInputChange}
                     />
                   </div>
+                </>
+              )}
+              {showAddForm === "accommodations" && (
+                <>
                   <div className="space-y-2">
-                    <Label>Check-out</Label>
+                    <Label>Hotel/Place Name</Label>
+                    <Input name="name" required onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Address</Label>
                     <Input
-                      type="date"
-                      name="checkOut"
+                      name="address"
+                      required
                       onChange={handleInputChange}
                     />
                   </div>
-                </div>
-              </>
-            )}
-            {showAddForm === "transport" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Type (e.g. Flight, Train)</Label>
-                  <Input name="type" required onChange={handleInputChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Details (e.g. Flight No.)</Label>
-                  <Input name="details" required onChange={handleInputChange} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Check-in</Label>
+                      <Input
+                        type="date"
+                        name="checkIn"
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Check-out</Label>
+                      <Input
+                        type="date"
+                        name="checkOut"
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {showAddForm === "dining" && (
+                <>
                   <div className="space-y-2">
-                    <Label>Departure</Label>
+                    <Label>Restaurant Name</Label>
+                    <Input
+                      name="restaurantName"
+                      required
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cuisine</Label>
+                    <Input name="cuisine" onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date & Time</Label>
                     <Input
                       type="datetime-local"
-                      name="departureTime"
+                      name="dateTime"
                       onChange={handleInputChange}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Arrival</Label>
-                    <Input
-                      type="datetime-local"
-                      name="arrivalTime"
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            {showAddForm === "dining" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Restaurant Name</Label>
-                  <Input
-                    name="restaurantName"
-                    required
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cuisine</Label>
-                  <Input name="cuisine" onChange={handleInputChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Date & Time</Label>
-                  <Input
-                    type="datetime-local"
-                    name="dateTime"
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </>
-            )}
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowAddForm(null)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
-            </div>
-          </form>
+                </>
+              )}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowAddForm(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
