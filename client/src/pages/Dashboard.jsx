@@ -1,4 +1,3 @@
-import Itinerary from "../components/Itinerary";
 import Planner from "../components/Planner";
 import FriendsList from "../components/FriendsList";
 import UserSearch from "../components/UserSearch";
@@ -52,18 +51,6 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Planner</span>
             </NavLink>
             <NavLink
-              to="/dashboard/itinerary"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`
-              }
-            >
-              <ListOrdered size={18} />
-              <span className="hidden sm:inline">Itinerary</span>
-            </NavLink>
-            <NavLink
               to="/dashboard/friends"
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
@@ -106,7 +93,6 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto">
         <Routes>
           <Route path="planner" element={<Planner />} />
-          <Route path="itinerary" element={<Itinerary />} />
           <Route path="friends" element={<FriendsList />} />
           <Route path="trips" element={<Trips />} />
           <Route path="trip/:tripId" element={<TripDetails />} />

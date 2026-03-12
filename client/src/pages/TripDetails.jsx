@@ -28,6 +28,7 @@ import {
   Navigation,
   Pencil,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -49,6 +50,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
 import TripChat from "../components/TripChat";
+import Itinerary from "../components/Itinerary";
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
@@ -76,7 +78,8 @@ export default function TripDetails() {
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
-
+  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   // Form states
   const [showAddForm, setShowAddForm] = useState(null);
   const [formData, setFormData] = useState({});
@@ -163,7 +166,7 @@ export default function TripDetails() {
         const results = await res.json();
         if (field === "origin") setRouteOriginResults(results);
         else setRouteDestResults(results);
-      } catch {}
+      } catch { }
     }, 400);
   };
 
@@ -294,66 +297,82 @@ export default function TripDetails() {
         >
           <ArrowLeft size={16} /> Back to Trips
         </Button>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <UserPlus size={16} /> Invite Friends
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite Friends to {trip.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
-              {friends.length === 0 ? (
-                <p className="text-center text-gray-500 py-4">
-                  No friends to invite
-                </p>
-              ) : (
-                friends.map((friend) => {
-                  const isMember = trip.members.some(
-                    (m) => m._id === friend._id,
-                  );
-                  const isInvited = trip.invitations.some(
-                    (i) => i._id === friend._id,
-                  );
-                  return (
-                    <div
-                      key={friend._id}
-                      className="flex items-center justify-between p-2 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={friend.avatar?.url} />
-                          <AvatarFallback>
-                            {friend.username[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">
-                          {friend.username}
-                        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setItineraryOpen(true)}
+          >
+            <CalendarDays size={16} /> View Itinerary
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setChatOpen(true)}
+          >
+            <MessageSquare size={16} /> Trip Chat
+          </Button>
+          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <UserPlus size={16} /> Invite Friends
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite Friends to {trip.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
+                {friends.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">
+                    No friends to invite
+                  </p>
+                ) : (
+                  friends.map((friend) => {
+                    const isMember = trip.members.some(
+                      (m) => m._id === friend._id,
+                    );
+                    const isInvited = trip.invitations.some(
+                      (i) => i._id === friend._id,
+                    );
+                    return (
+                      <div
+                        key={friend._id}
+                        className="flex items-center justify-between p-2 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={friend.avatar?.url} />
+                            <AvatarFallback>
+                              {friend.username[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">
+                            {friend.username}
+                          </span>
+                        </div>
+                        {isMember ? (
+                          <Badge variant="secondary">Member</Badge>
+                        ) : isInvited ? (
+                          <Badge variant="outline" className="text-yellow-600">
+                            Invited
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleInviteFriend(friend._id)}
+                          >
+                            Invite
+                          </Button>
+                        )}
                       </div>
-                      {isMember ? (
-                        <Badge variant="secondary">Member</Badge>
-                      ) : isInvited ? (
-                        <Badge variant="outline" className="text-yellow-600">
-                          Invited
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleInviteFriend(friend._id)}
-                        >
-                          Invite
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+                    );
+                  })
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Trip Info Card */}
@@ -812,10 +831,24 @@ export default function TripDetails() {
           </CardContent>
         </Card>
       </div>
-              {/* Chat Sidebar */}
-        <div className="lg:col-span-1">
+
+      {/* Itinerary Dialog */}
+      <Dialog open={itineraryOpen} onOpenChange={setItineraryOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Trip Itinerary</DialogTitle>
+          </DialogHeader>
+          <Itinerary />
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Dialog */}
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="max-w-md h-[600px] p-0 overflow-hidden">
           <TripChat tripId={trip._id} members={trip.members} />
-        </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>
         <DialogContent>
