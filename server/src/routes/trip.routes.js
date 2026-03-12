@@ -4,9 +4,12 @@ import {
   getUserTrips,
   getTripById,
   updateTripDetails,
+  addDestination,
+  removeDestination,
   inviteToTrip,
   getTripInvitations,
   respondToTripInvitation,
+  updateTripRoute,
 } from "../controllers/trip.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -18,8 +21,11 @@ router.post("/", createTrip);
 router.get("/", getUserTrips);
 router.get("/invitations", getTripInvitations);
 router.get("/:tripId", getTripById);
+router.post("/:tripId/destinations", addDestination);
+router.delete("/:tripId/destinations/:destId", removeDestination);
 router.patch("/:tripId/details", updateTripDetails);
 router.post("/:tripId/invite", inviteToTrip);
 router.post("/:tripId/respond", respondToTripInvitation);
+router.patch("/:tripId/route", updateTripRoute);
 
 export default router;

@@ -6,6 +6,7 @@ import FriendRequests from "../components/FriendRequests";
 import CreateTrip from "../components/CreateTrip";
 import Trips from "./Trips";
 import TripDetails from "./TripDetails";
+import { Button } from "../components/ui/button";
 import { Map, ListOrdered, Users, Plane } from "lucide-react";
 import {
   Routes,
@@ -17,6 +18,11 @@ import {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  const handleLogout=async () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  }
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       {/* Top Navigation */}
@@ -91,6 +97,9 @@ export default function Dashboard() {
               <CreateTrip onTripCreated={() => navigate("/dashboard/trips")} />
               <UserSearch />
               <FriendRequests />
+              <Button onClick={handleLogout}>
+                Logout
+              </Button>
             </div>
           </nav>
         </div>

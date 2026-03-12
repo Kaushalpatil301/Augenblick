@@ -68,7 +68,17 @@ export default function Trips() {
               <div className="mt-3 space-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <MapPin size={14} className="text-blue-500 shrink-0" />
-                  <span className="truncate">{trip.destination}</span>
+                  {trip.destinations?.length > 0 ? (
+                    <span className="truncate">
+                      {trip.destinations
+                        .map((d) => `${d.city}, ${d.country}`)
+                        .join(" · ")}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 italic">
+                      No destinations yet
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <CalendarDays

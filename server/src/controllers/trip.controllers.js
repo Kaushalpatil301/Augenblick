@@ -4,10 +4,10 @@ import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const createTrip = asyncHandler(async (req, res) => {
-  const { name, destination, startDate, endDate, budget } = req.body;
+  const { name, startDate, endDate, budget } = req.body;
   const userId = req.user._id;
 
-  if (!name || !destination || !startDate || !endDate || budget === undefined) {
+  if (!name || !startDate || !endDate || budget === undefined) {
     throw new ApiError(400, "All fields are required");
   }
 
@@ -17,10 +17,10 @@ const createTrip = asyncHandler(async (req, res) => {
 
   const trip = await Trip.create({
     name,
-    destination,
     startDate,
     endDate,
     budget,
+    destinations: [],
     createdBy: userId,
     members: [userId],
   });
@@ -75,7 +75,9 @@ const updateTripDetails = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Trip not found or you are not a member");
   }
 
-  if (!["attractions", "accommodations", "transport", "dining"].includes(type)) {
+  if (
+    !["attractions", "accommodations", "transport", "dining"].includes(type)
+  ) {
     throw new ApiError(400, "Invalid update type");
   }
 
@@ -85,6 +87,43 @@ const updateTripDetails = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, trip, `${type} added successfully`));
+});
+
+const addDestination = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const { city, country, displayName, lat, lng } = req.body;
+  const userId = req.user._id;
+
+  if (!city || !country) {
+    throw new ApiError(400, "City and country are required");
+  }
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) throw new ApiError(404, "Trip not found or you are not a member");
+
+  trip.destinations.push({ city, country, displayName, lat, lng });
+  await trip.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, trip.destinations, "Destination added"));
+});
+
+const removeDestination = asyncHandler(async (req, res) => {
+  const { tripId, destId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) throw new ApiError(404, "Trip not found or you are not a member");
+
+  trip.destinations = trip.destinations.filter(
+    (d) => d._id.toString() !== destId,
+  );
+  await trip.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, trip.destinations, "Destination removed"));
 });
 
 const inviteToTrip = asyncHandler(async (req, res) => {
@@ -139,7 +178,7 @@ const respondToTripInvitation = asyncHandler(async (req, res) => {
 
   // Remove from invitations
   trip.invitations = trip.invitations.filter(
-    (id) => id.toString() !== userId.toString()
+    (id) => id.toString() !== userId.toString(),
   );
 
   if (accept) {
@@ -154,9 +193,26 @@ const respondToTripInvitation = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         {},
-        `Trip invitation ${accept ? "accepted" : "rejected"} successfully`
-      )
+        `Trip invitation ${accept ? "accepted" : "rejected"} successfully`,
+      ),
     );
+});
+
+const updateTripRoute = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const { origin, mainDestination } = req.body;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) throw new ApiError(404, "Trip not found or you are not a member");
+
+  if (origin !== undefined) trip.origin = origin;
+  if (mainDestination !== undefined) trip.mainDestination = mainDestination;
+  await trip.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, trip, "Trip route updated successfully"));
 });
 
 export {
@@ -164,7 +220,10 @@ export {
   getUserTrips,
   getTripById,
   updateTripDetails,
+  addDestination,
+  removeDestination,
   inviteToTrip,
   getTripInvitations,
   respondToTripInvitation,
+  updateTripRoute,
 };

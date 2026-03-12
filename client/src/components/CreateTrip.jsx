@@ -17,7 +17,6 @@ export default function CreateTrip({ onTripCreated }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    destination: "",
     startDate: "",
     endDate: "",
     budget: "",
@@ -38,7 +37,6 @@ export default function CreateTrip({ onTripCreated }) {
       setOpen(false);
       setForm({
         name: "",
-        destination: "",
         startDate: "",
         endDate: "",
         budget: "",
@@ -74,17 +72,6 @@ export default function CreateTrip({ onTripCreated }) {
               name="name"
               placeholder="e.g. Summer Europe Adventure"
               value={form.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="destination">Destination</Label>
-            <Input
-              id="destination"
-              name="destination"
-              placeholder="e.g. Paris, France"
-              value={form.destination}
               onChange={handleChange}
               required
             />

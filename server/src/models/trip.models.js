@@ -7,11 +7,29 @@ const tripSchema = new Schema(
       required: true,
       trim: true,
     },
-    destination: {
-      type: String,
-      required: true,
-      trim: true,
+    origin: {
+      city: { type: String, trim: true },
+      country: { type: String, trim: true },
+      displayName: { type: String, trim: true },
+      lat: { type: Number },
+      lng: { type: Number },
     },
+    mainDestination: {
+      city: { type: String, trim: true },
+      country: { type: String, trim: true },
+      displayName: { type: String, trim: true },
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    destinations: [
+      {
+        city: { type: String, trim: true },
+        country: { type: String, trim: true },
+        displayName: { type: String, trim: true },
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+    ],
     startDate: {
       type: Date,
       required: true,
