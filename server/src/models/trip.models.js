@@ -59,6 +59,8 @@ const tripSchema = new Schema(
         name: String,
         description: String,
         location: String,
+        lat: Number,
+        lng: Number,
         date: Date,
       },
     ],
@@ -82,12 +84,24 @@ const tripSchema = new Schema(
         details: String,
         departureTime: Date,
         arrivalTime: Date,
+        departureLocation: {
+          lat: Number,
+          lng: Number,
+          name: String,
+        },
+        arrivalLocation: {
+          lat: Number,
+          lng: Number,
+          name: String,
+        },
       },
     ],
     dining: [
       {
         restaurantName: String,
         cuisine: String,
+        lat: Number,
+        lng: Number,
         dateTime: Date,
       },
     ],
@@ -97,6 +111,26 @@ const tripSchema = new Schema(
         ref: "User",
       },
     ],
+    itineraryStatus: {
+      type: String,
+      enum: ["none", "pending", "done", "error"],
+      default: "none",
+    },
+    itinerary: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    // ── Multi-Agent Results (Discovery) ──────────────────────────────────
+    agents: {
+      type: Schema.Types.Mixed,
+      default: {
+        accommodation: { status: "none", data: [] },
+        activities: { status: "none", data: [] },
+        dining: { status: "none", data: [] },
+        transport: { status: "none", data: [] }
+      }
+    },
+    // ──────────────────────────────────────────────────────────────────────
   },
   { timestamps: true },
 );

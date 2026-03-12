@@ -176,6 +176,8 @@ export default function AttractionPicker({
           ? CATEGORY_LABELS[poi.category] || poi.category
           : "",
         location,
+        lat: poi.geoCode?.latitude,
+        lng: poi.geoCode?.longitude,
       });
       setAdded((prev) => ({ ...prev, [poi.id]: true }));
     } catch {

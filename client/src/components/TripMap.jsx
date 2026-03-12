@@ -93,6 +93,33 @@ const FILTER_CONFIG = [
   },
 ];
 
+const getLatLng = (item) => {
+  if (!item || typeof item !== "object") return null;
+
+  const latCandidates = [
+    item.lat,
+    item.latitude,
+    item?.geoCode?.latitude,
+    item?.location?.lat,
+    item?.coordinates?.[1],
+  ];
+  const lngCandidates = [
+    item.lng,
+    item.lon,
+    item.longitude,
+    item?.geoCode?.longitude,
+    item?.location?.lng,
+    item?.location?.lon,
+    item?.coordinates?.[0],
+  ];
+
+  const lat = latCandidates.find((v) => Number.isFinite(Number(v)));
+  const lng = lngCandidates.find((v) => Number.isFinite(Number(v)));
+  if (lat === undefined || lng === undefined) return null;
+
+  return [Number(lat), Number(lng)];
+};
+
 export default function TripMap({ trip }) {
   const [filters, setFilters] = useState({
     origin: true,
@@ -128,6 +155,11 @@ export default function TripMap({ trip }) {
     return pts;
   }, [trip]);
 
+  const aiAttractions = trip?.agents?.activities?.data || [];
+  const aiAccommodations = trip?.agents?.accommodation?.data || [];
+  const aiDining = trip?.agents?.dining?.data || [];
+  const aiTransport = trip?.agents?.transport?.data || [];
+
   // All points for auto-fit
   const fitPoints = useMemo(() => {
     const pts = [];
@@ -144,19 +176,37 @@ export default function TripMap({ trip }) {
       trip?.attractions
         ?.filter((a) => a.lat && a.lng)
         .forEach((a) => pts.push([a.lat, a.lng]));
+      aiAttractions
+        .map((a) => getLatLng(a))
+        .filter(Boolean)
+        .forEach((p) => pts.push(p));
     }
     if (filters.accommodations) {
       trip?.accommodations
         ?.filter((a) => a.latitude && a.longitude)
         .forEach((a) => pts.push([a.latitude, a.longitude]));
+      aiAccommodations
+        .map((a) => getLatLng(a))
+        .filter(Boolean)
+        .forEach((p) => pts.push(p));
     }
     if (filters.dining) {
       trip?.dining
         ?.filter((d) => d.lat && d.lng)
         .forEach((d) => pts.push([d.lat, d.lng]));
+      aiDining
+        .map((d) => getLatLng(d))
+        .filter(Boolean)
+        .forEach((p) => pts.push(p));
+    }
+    if (filters.transport) {
+      aiTransport
+        .map((t) => getLatLng(t))
+        .filter(Boolean)
+        .forEach((p) => pts.push(p));
     }
     return pts;
-  }, [trip, filters]);
+  }, [trip, filters, aiAttractions, aiAccommodations, aiDining, aiTransport]);
 
   // Count items per filter
   const counts = useMemo(() => {
@@ -166,17 +216,28 @@ export default function TripMap({ trip }) {
     c.stops = trip?.destinations?.filter((d) => d.lat && d.lng).length || 0;
     c.route = routePoints.length >= 2 ? 1 : 0;
     c.attractions =
-      trip?.attractions?.filter((a) => a.lat && a.lng).length || 0;
+      (trip?.attractions?.filter((a) => a.lat && a.lng).length || 0) +
+      aiAttractions.map((a) => getLatLng(a)).filter(Boolean).length;
     c.accommodations =
-      trip?.accommodations?.filter((a) => a.latitude && a.longitude).length ||
-      0;
-    c.dining = trip?.dining?.filter((d) => d.lat && d.lng).length || 0;
+      (trip?.accommodations?.filter((a) => a.latitude && a.longitude).length ||
+        0) + aiAccommodations.map((a) => getLatLng(a)).filter(Boolean).length;
+    c.dining =
+      (trip?.dining?.filter((d) => d.lat && d.lng).length || 0) +
+      aiDining.map((d) => getLatLng(d)).filter(Boolean).length;
     c.transport =
       trip?.transport?.filter(
         (t) => t.departureLocation?.lat || t.departureLocation?.latitude,
       ).length || 0;
+    c.transport += aiTransport.map((t) => getLatLng(t)).filter(Boolean).length;
     return c;
-  }, [trip, routePoints]);
+  }, [
+    trip,
+    routePoints,
+    aiAttractions,
+    aiAccommodations,
+    aiDining,
+    aiTransport,
+  ]);
 
   return (
     <div className="space-y-3">
@@ -368,6 +429,27 @@ export default function TripMap({ trip }) {
                 ),
             )}
 
+          {/* AI Attractions */}
+          {filters.attractions &&
+            aiAttractions.map((attr, idx) => {
+              const point = getLatLng(attr);
+              if (!point) return null;
+              return (
+                <Marker
+                  key={`ai-attraction-${idx}`}
+                  position={point}
+                  icon={createEmojiIcon("✨", 30)}
+                >
+                  <Popup>
+                    <div className="text-sm font-semibold">
+                      {attr.name || "AI attraction"}
+                    </div>
+                    <div className="text-xs text-indigo-600">AI suggestion</div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
           {/* Accommodations */}
           {filters.accommodations &&
             trip?.accommodations?.map(
@@ -396,6 +478,27 @@ export default function TripMap({ trip }) {
                 ),
             )}
 
+          {/* AI Accommodations */}
+          {filters.accommodations &&
+            aiAccommodations.map((acc, idx) => {
+              const point = getLatLng(acc);
+              if (!point) return null;
+              return (
+                <Marker
+                  key={`ai-accommodation-${idx}`}
+                  position={point}
+                  icon={createEmojiIcon("✨", 30)}
+                >
+                  <Popup>
+                    <div className="text-sm font-semibold">
+                      {acc.name || acc.hotel_name || "AI hotel"}
+                    </div>
+                    <div className="text-xs text-indigo-600">AI suggestion</div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
           {/* Dining */}
           {filters.dining &&
             trip?.dining?.map(
@@ -421,6 +524,27 @@ export default function TripMap({ trip }) {
                   </Marker>
                 ),
             )}
+
+          {/* AI Dining */}
+          {filters.dining &&
+            aiDining.map((dine, idx) => {
+              const point = getLatLng(dine);
+              if (!point) return null;
+              return (
+                <Marker
+                  key={`ai-dining-${idx}`}
+                  position={point}
+                  icon={createEmojiIcon("✨", 30)}
+                >
+                  <Popup>
+                    <div className="text-sm font-semibold">
+                      {dine.restaurantName || dine.name || "AI dining"}
+                    </div>
+                    <div className="text-xs text-indigo-600">AI suggestion</div>
+                  </Popup>
+                </Marker>
+              );
+            })}
 
           {/* Transport */}
           {filters.transport &&
@@ -455,6 +579,30 @@ export default function TripMap({ trip }) {
                   </Marker>
                 ),
             )}
+
+          {/* AI Transport */}
+          {filters.transport &&
+            aiTransport.map((trans, idx) => {
+              const point = getLatLng(trans);
+              if (!point) return null;
+              return (
+                <Marker
+                  key={`ai-transport-${idx}`}
+                  position={point}
+                  icon={createEmojiIcon("✨", 30)}
+                >
+                  <Popup>
+                    <div className="text-sm font-semibold capitalize">
+                      {trans.mode ||
+                        trans.type ||
+                        trans.provider ||
+                        "AI transport"}
+                    </div>
+                    <div className="text-xs text-indigo-600">AI suggestion</div>
+                  </Popup>
+                </Marker>
+              );
+            })}
         </MapContainer>
       </div>
 
