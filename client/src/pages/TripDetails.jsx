@@ -30,6 +30,7 @@ import {
   Navigation,
   Pencil,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -57,6 +58,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
 import TripChat from "../components/TripChat";
+import Itinerary from "../components/Itinerary";
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
@@ -76,7 +78,6 @@ function formatDateTime(dateStr) {
     minute: "2-digit",
   });
 }
-
 export default function TripDetails() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -84,7 +85,8 @@ export default function TripDetails() {
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
-
+  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   // Form states
   const [showAddForm, setShowAddForm] = useState(null);
   const [formData, setFormData] = useState({});
@@ -304,144 +306,179 @@ export default function TripDetails() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/dashboard/trips")}
-          className="gap-2 cursor-pointer"
-        >
-          <ArrowLeft size={16} /> Back to Trips
-        </Button>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <UserPlus size={16} /> Invite Friends
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite Friends to {trip.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
-              {friends.length === 0 ? (
-                <p className="text-center text-gray-500 py-4">
-                  No friends to invite
-                </p>
-              ) : (
-                friends.map((friend) => {
-                  const isMember = trip.members.some(
-                    (m) => m._id === friend._id,
-                  );
-                  const isInvited = trip.invitations.some(
-                    (i) => i._id === friend._id,
-                  );
-                  return (
-                    <div
-                      key={friend._id}
-                      className="flex items-center justify-between p-2 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={friend.avatar?.url} />
-                          <AvatarFallback>
-                            {friend.username[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">
-                          {friend.username}
-                        </span>
-                      </div>
-                      {isMember ? (
-                        <Badge variant="secondary">Member</Badge>
-                      ) : isInvited ? (
-                        <Badge variant="outline" className="text-yellow-600">
-                          Invited
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleInviteFriend(friend._id)}
-                        >
-                          Invite
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Trip Info Card */}
-      <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-lg">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold">{trip.name}</h2>
-              <div className="flex flex-wrap items-center gap-2 mt-2 opacity-90">
-                {trip.destinations?.length > 0 ? (
-                  trip.destinations.map((d) => (
-                    <span
-                      key={d._id}
-                      className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full text-xs"
-                    >
-                      <MapPin size={11} /> {d.city}, {d.country}
-                    </span>
-                  ))
-                ) : (
-                  <span className="flex items-center gap-1 opacity-70 text-sm">
-                    <MapPin size={14} /> No destinations yet
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <CalendarDays size={16} /> {formatDate(trip.startDate)} -{" "}
-                  {formatDate(trip.endDate)}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-xs opacity-70 uppercase tracking-wider font-semibold">
-                  Budget
-                </p>
-                <p className="text-2xl font-bold flex items-center gap-1">
-                  <DollarSign size={20} /> {trip.budget.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center gap-2 pt-4 border-t border-white/20">
-            <Users size={16} />
-            <span className="text-sm font-medium">Members:</span>
-            <div className="flex -space-x-2 ml-2">
-              {trip.members.map((member) => (
-                <Avatar
-                  key={member._id}
-                  className="h-7 w-7 border-2 border-indigo-600"
-                >
-                  <AvatarImage src={member.avatar?.url} />
-                  <AvatarFallback className="text-[10px] bg-indigo-500">
-                    {member.username[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs for different views */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="map">Map</TabsTrigger>
-          <TabsTrigger value="planning">Planning</TabsTrigger>
-          <TabsTrigger value="chat">Chat</TabsTrigger>
-        </TabsList>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/dashboard/trips")}
+            className="gap-2 cursor-pointer"
+          >
+            <ArrowLeft size={16} /> Back to Trips
+          </Button>
+          
+          <div className="flex flex-wrap items-center justify-end gap-2">
+             <TabsList className="h-10 bg-transparent p-0 gap-2">
+              <TabsTrigger
+                value="overview"
+                className="h-10 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="map"
+                className="h-10 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
+              >
+                Map
+              </TabsTrigger>
+              <TabsTrigger
+                value="planning"
+                className="h-10 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
+              >
+                Planning
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setItineraryOpen(true)}
+            >
+              <CalendarDays size={16} /> View Itinerary
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageSquare size={16} /> Trip Chat
+            </Button>
+           
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <UserPlus size={16} /> Invite Friends
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Invite Friends to {trip.name}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
+                  {friends.length === 0 ? (
+                    <p className="text-center text-gray-500 py-4">
+                      No friends to invite
+                    </p>
+                  ) : (
+                    friends.map((friend) => {
+                      const isMember = trip.members.some(
+                        (m) => m._id === friend._id,
+                      );
+                      const isInvited = trip.invitations.some(
+                        (i) => i._id === friend._id,
+                      );
+                      return (
+                        <div
+                          key={friend._id}
+                          className="flex items-center justify-between p-2 border rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={friend.avatar?.url} />
+                              <AvatarFallback>
+                                {friend.username[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">
+                              {friend.username}
+                            </span>
+                          </div>
+                          {isMember ? (
+                            <Badge variant="secondary">Member</Badge>
+                          ) : isInvited ? (
+                            <Badge
+                              variant="outline"
+                              className="text-yellow-600"
+                            >
+                              Invited
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleInviteFriend(friend._id)}
+                            >
+                              Invite
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        {/* Trip Info Card */}
+        <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold">{trip.name}</h2>
+                <div className="flex flex-wrap items-center gap-2 mt-2 opacity-90">
+                  {trip.destinations?.length > 0 ? (
+                    trip.destinations.map((d) => (
+                      <span
+                        key={d._id}
+                        className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full text-xs"
+                      >
+                        <MapPin size={11} /> {d.city}, {d.country}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="flex items-center gap-1 opacity-70 text-sm">
+                      <MapPin size={14} /> No destinations yet
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <CalendarDays size={16} /> {formatDate(trip.startDate)} -{" "}
+                    {formatDate(trip.endDate)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-xs opacity-70 uppercase tracking-wider font-semibold">
+                    Budget
+                  </p>
+                  <p className="text-2xl font-bold flex items-center gap-1">
+                    <DollarSign size={20} /> {trip.budget.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-2 pt-4 border-t border-white/20">
+              <Users size={16} />
+              <span className="text-sm font-medium">Members:</span>
+              <div className="flex -space-x-2 ml-2">
+                {trip.members.map((member) => (
+                  <Avatar
+                    key={member._id}
+                    className="h-7 w-7 border-2 border-indigo-600"
+                  >
+                    <AvatarImage src={member.avatar?.url} />
+                    <AvatarFallback className="text-[10px] bg-indigo-500">
+                      {member.username[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs for different views */}
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
@@ -748,11 +785,6 @@ export default function TripDetails() {
             </Card>
           </div>
         </TabsContent>
-
-        {/* Chat Tab */}
-        <TabsContent value="chat" className="space-y-6">
-          <TripChat tripId={trip._id} members={trip.members} />
-        </TabsContent>
       </Tabs>
       <Dialog
         open={editingRoute}
@@ -879,7 +911,39 @@ export default function TripDetails() {
         </DialogContent>
       </Dialog>
 
-   
+      {/* Hotel Picker Dialog */}
+      <Dialog
+        open={pickingHotel}
+        onOpenChange={(o) => !o && setPickingHotel(false)}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Find a Hotel</DialogTitle>
+          </DialogHeader>
+          <HotelPicker
+            trip={trip}
+            onAdd={handleAddHotel}
+            onClose={() => setPickingHotel(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Itinerary Dialog */}
+      <Dialog open={itineraryOpen} onOpenChange={setItineraryOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Trip Itinerary</DialogTitle>
+          </DialogHeader>
+          <Itinerary />
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Dialog */}
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="max-w-md h-[600px] p-0 overflow-hidden">
+          <TripChat tripId={trip._id} members={trip.members} />
+        </DialogContent>
+      </Dialog>
 
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>

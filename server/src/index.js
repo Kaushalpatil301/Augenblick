@@ -42,12 +42,12 @@ io.on("connection", (socket) => {
     try {
       const newMessage = new Message({
         tripId: data.tripId,
-        sender: data.sender._id || data.sender, // Support populated user or straight ID
+        sender: data.sender._id || data.sender, 
         text: data.text,
       });
       await newMessage.save();
 
-      // Broadcast to room
+      
       io.to(data.tripId).emit("receive_message", {
         ...data,
         _id: newMessage._id,
