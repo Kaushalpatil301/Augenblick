@@ -58,6 +58,29 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("start_voice_chat", async (data) => {
+    try {
+      const newMessage = new Message({
+        tripId: data.tripId,
+        sender: data.sender._id || data.sender,
+        text: `${data.username || "A user"} started a voice planning session.`,
+        isSystem: true,
+      });
+      await newMessage.save();
+
+      // Broadcast to room
+      io.to(data.tripId).emit("receive_message", {
+        ...data,
+        _id: newMessage._id,
+        text: newMessage.text,
+        isSystem: true,
+        createdAt: newMessage.createdAt,
+      });
+    } catch (err) {
+      console.error("Error saving system message", err);
+    }
+  });
+
   socket.on("user_typing", (data) => {
     socket.to(data.tripId).emit("user_typing", data);
   });

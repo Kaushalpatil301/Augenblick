@@ -81,6 +81,14 @@ export default function TripChat({ tripId, members }) {
     };
 
     const handleJoinVoice = () => {
+        const username = currentUser?.username || "A user";
+        if (socket) {
+            socket.emit("start_voice_chat", {
+                tripId,
+                sender: currentUser?._id || "guest",
+                username,
+            });
+        }
         window.open(`/dashboard/voice/${tripId}`, "_blank");
     };
 
@@ -107,6 +115,32 @@ export default function TripChat({ tripId, members }) {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, idx) => {
+                    if (msg.isSystem) {
+                        return (
+                            <motion.div
+                                key={msg._id || idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex justify-center my-4"
+                            >
+                                <div className="flex flex-col items-center justify-center gap-2 bg-indigo-50 px-6 py-3 rounded-3xl border border-indigo-100 shadow-sm max-w-[85%]">
+                                    <div className="flex items-center gap-2 text-indigo-800 text-sm font-medium">
+                                        <div className="p-1.5 bg-indigo-100 rounded-full text-indigo-600 animate-pulse">
+                                            <Mic size={14} />
+                                        </div>
+                                        <span>{msg.text}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => window.open(`/dashboard/voice/${tripId}`, "_blank")}
+                                        className="text-xs font-semibold px-4 py-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-sm"
+                                    >
+                                        Join
+                                    </button>
+                                </div>
+                            </motion.div>
+                        );
+                    }
+
                     const msgSenderId = typeof msg.sender === 'object' ? msg.sender?._id : msg.sender;
                     const isMe = msgSenderId === (currentUser?._id || "guest");
 
