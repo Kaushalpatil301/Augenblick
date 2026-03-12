@@ -10,6 +10,7 @@ import {
 } from "../api/trips";
 import { getFriends } from "../api/friends";
 import DestinationMapPicker from "../components/DestinationMapPicker";
+import HotelPicker from "../components/HotelPicker";
 import {
   MapPin,
   CalendarDays,
@@ -85,6 +86,7 @@ export default function TripDetails() {
   const [formData, setFormData] = useState({});
   const [destForm, setDestForm] = useState({ city: "", country: "" });
   const [addingDest, setAddingDest] = useState(false);
+  const [pickingHotel, setPickingHotel] = useState(false);
 
   // Route editing
   const [editingRoute, setEditingRoute] = useState(false);
@@ -256,6 +258,16 @@ export default function TripDetails() {
       fetchTrip();
     } catch (error) {
       toast.error("Failed to remove destination");
+    }
+  };
+
+  const handleAddHotel = async (hotelData) => {
+    try {
+      await updateTripDetails(tripId, "accommodations", hotelData);
+      toast.success("Hotel added");
+      fetchTrip();
+    } catch {
+      toast.error("Failed to add hotel");
     }
   };
 
@@ -729,7 +741,7 @@ export default function TripDetails() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowAddForm("accommodations")}
+              onClick={() => setPickingHotel(true)}
             >
               <Plus size={16} />
             </Button>
@@ -747,14 +759,38 @@ export default function TripDetails() {
                 >
                   <p className="font-semibold text-sm">{acc.name}</p>
                   <p className="text-xs text-gray-500">{acc.address}</p>
-                  <p className="text-[10px] text-indigo-600 mt-1">
-                    {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-[10px] text-indigo-600">
+                      {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
+                    </p>
+                    {acc.priceTotal && (
+                      <span className="text-[10px] font-semibold text-green-600">
+                        {acc.priceCurrency} {acc.priceTotal}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))
             )}
           </CardContent>
         </Card>
+
+        {/* Hotel Picker Dialog */}
+        <Dialog
+          open={pickingHotel}
+          onOpenChange={(o) => !o && setPickingHotel(false)}
+        >
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Find a Hotel</DialogTitle>
+            </DialogHeader>
+            <HotelPicker
+              trip={trip}
+              onAdd={handleAddHotel}
+              onClose={() => setPickingHotel(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
         {/* Transport */}
         <Card>
@@ -831,6 +867,7 @@ export default function TripDetails() {
           </CardContent>
         </Card>
       </div>
+<<<<<<< HEAD
 
       {/* Itinerary Dialog */}
       <Dialog open={itineraryOpen} onOpenChange={setItineraryOpen}>
@@ -849,6 +886,12 @@ export default function TripDetails() {
         </DialogContent>
       </Dialog>
 
+=======
+      {/* Chat Sidebar */}
+      <div className="lg:col-span-1">
+        <TripChat tripId={trip._id} members={trip.members} />
+      </div>
+>>>>>>> 4852cd0ca6a2121100c639b4222339f2a34a296a
       {/* Add Form Dialog */}
       <Dialog open={!!showAddForm} onOpenChange={() => setShowAddForm(null)}>
         <DialogContent>

@@ -65,7 +65,13 @@ const tripSchema = new Schema(
     accommodations: [
       {
         name: String,
+        hotelId: String,
         address: String,
+        cityCode: String,
+        latitude: Number,
+        longitude: Number,
+        priceTotal: String,
+        priceCurrency: String,
         checkIn: Date,
         checkOut: Date,
       },

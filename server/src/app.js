@@ -4,6 +4,7 @@ import cors from "cors";
 import authRouter from "./routes/auth.routes.js";
 import friendRouter from "./routes/friend.routes.js";
 import tripRouter from "./routes/trip.routes.js";
+import amadeusRouter from "./routes/amadeus.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -33,6 +34,7 @@ app.use(cookieParser()); // Parse cookies
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/friends", friendRouter);
 app.use("/api/v1/trips", tripRouter);
+app.use("/api/v1/amadeus", amadeusRouter);
 app.get("/api/v1/test", (req, res) => {
   res.json({ message: "Test route is working!" });
 });
@@ -42,6 +44,19 @@ app.get("/", (req, res) => {
 
 app.get("/test", (req, res) => {
   res.json({ message: "Test route working" });
+});
+
+// Global error handler — must be last, after all routes
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(statusCode).json({
+    success: false,
+    statusCode,
+    message,
+    errors: err.errors || [],
+  });
 });
 
 export default app;
