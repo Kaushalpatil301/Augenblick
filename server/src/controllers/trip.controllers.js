@@ -5,7 +5,15 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import Message from "../models/Message.js";
 
 const createTrip = asyncHandler(async (req, res) => {
-  const { name, startDate, endDate, budget } = req.body;
+  const {
+    name,
+    startDate,
+    endDate,
+    budget,
+    origin,
+    mainDestination,
+    destinations,
+  } = req.body;
   const userId = req.user._id;
 
   if (!name || !startDate || !endDate || budget === undefined) {
@@ -21,7 +29,9 @@ const createTrip = asyncHandler(async (req, res) => {
     startDate,
     endDate,
     budget,
-    destinations: [],
+    origin: origin || undefined,
+    mainDestination: mainDestination || undefined,
+    destinations: Array.isArray(destinations) ? destinations : [],
     createdBy: userId,
     members: [userId],
   });

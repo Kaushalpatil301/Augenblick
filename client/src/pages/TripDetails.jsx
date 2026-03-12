@@ -316,9 +316,9 @@ export default function TripDetails() {
           >
             <ArrowLeft size={16} /> Back to Trips
           </Button>
-          
+
           <div className="flex flex-wrap items-center justify-end gap-2">
-             <TabsList className="h-10 bg-transparent p-0 gap-2">
+            <TabsList className="h-10 bg-transparent p-0 gap-2">
               <TabsTrigger
                 value="overview"
                 className="h-10 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
@@ -352,7 +352,7 @@ export default function TripDetails() {
             >
               <MessageSquare size={16} /> Trip Chat
             </Button>
-           
+
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -484,18 +484,10 @@ export default function TripDetails() {
         <TabsContent value="overview" className="space-y-6">
           {/* Trip Route Card */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Navigation className="text-indigo-500" size={20} /> Trip Route
               </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={openRouteEditor}
-                className="gap-1"
-              >
-                <Pencil size={13} /> Edit
-              </Button>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
@@ -537,6 +529,167 @@ export default function TripDetails() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Destinations (Read-only) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MapPin className="text-blue-500" size={20} /> Destinations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {!trip.destinations?.length ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No destinations added yet.
+                  </p>
+                ) : (
+                  trip.destinations.map((dest) => (
+                    <div
+                      key={dest._id}
+                      className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium px-3 py-1.5 rounded-full"
+                    >
+                      <MapPin size={12} />
+                      {dest.city}, {dest.country}
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Planning Details (Read-only) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Camera className="text-pink-500" size={20} /> Attractions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!trip.attractions?.length ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No attractions added yet
+                  </p>
+                ) : (
+                  trip.attractions.map((attr, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">{attr.name}</p>
+                      <p className="text-xs text-gray-500">{attr.location}</p>
+                      {attr.date && (
+                        <p className="text-[10px] text-indigo-600 mt-1">
+                          {formatDate(attr.date)}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Hotel className="text-blue-500" size={20} /> Accommodations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!trip.accommodations?.length ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No accommodations added yet
+                  </p>
+                ) : (
+                  trip.accommodations.map((acc, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">{acc.name}</p>
+                      <p className="text-xs text-gray-500">{acc.address}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-[10px] text-indigo-600">
+                          {formatDate(acc.checkIn)} - {formatDate(acc.checkOut)}
+                        </p>
+                        {acc.priceTotal && (
+                          <span className="text-[10px] font-semibold text-green-600">
+                            {acc.priceCurrency} {acc.priceTotal}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Plane className="text-green-500" size={20} /> Transport
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!trip.transport?.length ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No transport details added yet
+                  </p>
+                ) : (
+                  trip.transport.map((trans, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="mb-1 text-[10px] h-4"
+                      >
+                        {trans.type}
+                      </Badge>
+                      <p className="text-sm font-medium">{trans.details}</p>
+                      <p className="text-[10px] text-indigo-600 mt-1">
+                        Dep: {formatDateTime(trans.departureTime)} | Arr:{" "}
+                        {formatDateTime(trans.arrivalTime)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Utensils className="text-orange-500" size={20} /> Dining
+                  Options
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!trip.dining?.length ? (
+                  <p className="text-sm text-gray-500 italic">
+                    No dining options added yet
+                  </p>
+                ) : (
+                  trip.dining.map((dine, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <p className="font-semibold text-sm">
+                        {dine.restaurantName}
+                      </p>
+                      <p className="text-xs text-gray-500">{dine.cuisine}</p>
+                      <p className="text-[10px] text-indigo-600 mt-1">
+                        {formatDateTime(dine.dateTime)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Map Tab */}

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
   Marker,
   Popup,
   Polyline,
+  useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import { Filter } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 // Helper to create emoji markers
 const createEmojiIcon = (emoji, size = 32) => {
@@ -20,10 +21,83 @@ const createEmojiIcon = (emoji, size = 32) => {
   });
 };
 
+// Auto-fit bounds when points change
+function AutoFitBounds({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length >= 2) {
+      map.fitBounds(points, { padding: [50, 50], maxZoom: 10 });
+    } else if (points.length === 1) {
+      map.setView(points[0], 8);
+    }
+  }, [points, map]);
+  return null;
+}
+
+const FILTER_CONFIG = [
+  {
+    key: "origin",
+    label: "Origin",
+    emoji: "🟢",
+    active: "bg-green-100 text-green-700 ring-green-400",
+    dot: "bg-green-500",
+  },
+  {
+    key: "destination",
+    label: "Destination",
+    emoji: "🔴",
+    active: "bg-red-100 text-red-700 ring-red-400",
+    dot: "bg-red-500",
+  },
+  {
+    key: "stops",
+    label: "Stops",
+    emoji: "🔵",
+    active: "bg-blue-100 text-blue-700 ring-blue-400",
+    dot: "bg-blue-500",
+  },
+  {
+    key: "route",
+    label: "Route",
+    emoji: "- -",
+    active: "bg-sky-100 text-sky-700 ring-sky-400",
+    dot: "bg-sky-500",
+  },
+  {
+    key: "attractions",
+    label: "Attractions",
+    emoji: "📸",
+    active: "bg-pink-100 text-pink-700 ring-pink-400",
+    dot: "bg-pink-500",
+  },
+  {
+    key: "accommodations",
+    label: "Hotels",
+    emoji: "🏨",
+    active: "bg-indigo-100 text-indigo-700 ring-indigo-400",
+    dot: "bg-indigo-500",
+  },
+  {
+    key: "dining",
+    label: "Dining",
+    emoji: "🍽️",
+    active: "bg-orange-100 text-orange-700 ring-orange-400",
+    dot: "bg-orange-500",
+  },
+  {
+    key: "transport",
+    label: "Transport",
+    emoji: "✈️",
+    active: "bg-teal-100 text-teal-700 ring-teal-400",
+    dot: "bg-teal-500",
+  },
+];
+
 export default function TripMap({ trip }) {
   const [filters, setFilters] = useState({
     origin: true,
     destination: true,
+    stops: true,
     attractions: true,
     accommodations: true,
     dining: true,
@@ -31,122 +105,161 @@ export default function TripMap({ trip }) {
     route: true,
   });
 
-  const [center, setCenter] = useState([20, 0]);
-
-  useEffect(() => {
-    // Calculate center based on trip coordinates
-    const markers = [];
-    if (trip?.origin?.lat && trip?.origin?.lng) {
-      markers.push([trip.origin.lat, trip.origin.lng]);
-    }
-    if (trip?.mainDestination?.lat && trip?.mainDestination?.lng) {
-      markers.push([trip.mainDestination.lat, trip.mainDestination.lng]);
-    }
-    trip?.attractions?.forEach((a) => {
-      if (a.lat && a.lng) markers.push([a.lat, a.lng]);
-    });
-    trip?.accommodations?.forEach((a) => {
-      if (a.latitude && a.longitude) markers.push([a.latitude, a.longitude]);
-    });
-    trip?.dining?.forEach((d) => {
-      if (d.lat && d.lng) markers.push([d.lat, d.lng]);
-    });
-
-    if (markers.length > 0) {
-      const avgLat = markers.reduce((sum, m) => sum + m[0], 0) / markers.length;
-      const avgLng = markers.reduce((sum, m) => sum + m[1], 0) / markers.length;
-      setCenter([avgLat, avgLng]);
-    }
-  }, [trip]);
-
   const toggleFilter = (key) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const allOn = Object.values(filters).every(Boolean);
+  const toggleAll = () => {
+    const next = !allOn;
+    setFilters(Object.fromEntries(Object.keys(filters).map((k) => [k, next])));
+  };
+
+  // Build route polyline: origin → stops → destination
+  const routePoints = useMemo(() => {
+    const pts = [];
+    if (trip?.origin?.lat && trip?.origin?.lng)
+      pts.push([trip.origin.lat, trip.origin.lng]);
+    trip?.destinations
+      ?.filter((d) => d.lat && d.lng)
+      .forEach((d) => pts.push([d.lat, d.lng]));
+    if (trip?.mainDestination?.lat && trip?.mainDestination?.lng)
+      pts.push([trip.mainDestination.lat, trip.mainDestination.lng]);
+    return pts;
+  }, [trip]);
+
+  // All points for auto-fit
+  const fitPoints = useMemo(() => {
+    const pts = [];
+    if (filters.origin && trip?.origin?.lat)
+      pts.push([trip.origin.lat, trip.origin.lng]);
+    if (filters.destination && trip?.mainDestination?.lat)
+      pts.push([trip.mainDestination.lat, trip.mainDestination.lng]);
+    if (filters.stops) {
+      trip?.destinations
+        ?.filter((d) => d.lat && d.lng)
+        .forEach((d) => pts.push([d.lat, d.lng]));
+    }
+    if (filters.attractions) {
+      trip?.attractions
+        ?.filter((a) => a.lat && a.lng)
+        .forEach((a) => pts.push([a.lat, a.lng]));
+    }
+    if (filters.accommodations) {
+      trip?.accommodations
+        ?.filter((a) => a.latitude && a.longitude)
+        .forEach((a) => pts.push([a.latitude, a.longitude]));
+    }
+    if (filters.dining) {
+      trip?.dining
+        ?.filter((d) => d.lat && d.lng)
+        .forEach((d) => pts.push([d.lat, d.lng]));
+    }
+    return pts;
+  }, [trip, filters]);
+
+  // Count items per filter
+  const counts = useMemo(() => {
+    const c = {};
+    c.origin = trip?.origin?.lat ? 1 : 0;
+    c.destination = trip?.mainDestination?.lat ? 1 : 0;
+    c.stops = trip?.destinations?.filter((d) => d.lat && d.lng).length || 0;
+    c.route = routePoints.length >= 2 ? 1 : 0;
+    c.attractions =
+      trip?.attractions?.filter((a) => a.lat && a.lng).length || 0;
+    c.accommodations =
+      trip?.accommodations?.filter((a) => a.latitude && a.longitude).length ||
+      0;
+    c.dining = trip?.dining?.filter((d) => d.lat && d.lng).length || 0;
+    c.transport =
+      trip?.transport?.filter(
+        (t) => t.departureLocation?.lat || t.departureLocation?.latitude,
+      ).length || 0;
+    return c;
+  }, [trip, routePoints]);
+
   return (
     <div className="space-y-3">
-      {/* Filter Controls */}
-      <div className="flex items-center gap-2 pb-3 border-b border-gray-200">
-        <Filter size={16} className="text-gray-600 flex-shrink-0" />
-        <div className="flex flex-wrap gap-2">
+      {/* Filter bar */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Map Layers
+          </span>
           <button
-            onClick={() => toggleFilter("origin")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.origin
-                ? "bg-green-100 text-green-700 border border-green-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
+            onClick={toggleAll}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
           >
-            🟢 Origin
+            {allOn ? <EyeOff size={13} /> : <Eye size={13} />}
+            {allOn ? "Hide all" : "Show all"}
           </button>
-          <button
-            onClick={() => toggleFilter("destination")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.destination
-                ? "bg-red-100 text-red-700 border border-red-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            🔴 Destination
-          </button>
-          <button
-            onClick={() => toggleFilter("route")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.route
-                ? "bg-blue-100 text-blue-700 border border-blue-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            Route
-          </button>
-          <button
-            onClick={() => toggleFilter("attractions")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.attractions
-                ? "bg-pink-100 text-pink-700 border border-pink-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            📸 Attractions
-          </button>
-          <button
-            onClick={() => toggleFilter("accommodations")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.accommodations
-                ? "bg-indigo-100 text-indigo-700 border border-indigo-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            🏨 Hotels
-          </button>
-          <button
-            onClick={() => toggleFilter("dining")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.dining
-                ? "bg-orange-100 text-orange-700 border border-orange-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            🍽️ Dining
-          </button>
-          <button
-            onClick={() => toggleFilter("transport")}
-            className={`px-3 py-1 text-xs rounded-full transition-colors font-medium ${
-              filters.transport
-                ? "bg-teal-100 text-teal-700 border border-teal-300"
-                : "bg-gray-100 text-gray-600 border border-gray-200"
-            }`}
-          >
-            ✈️ Transport
-          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FILTER_CONFIG.map(({ key, label, emoji, active, dot }) => (
+            <button
+              key={key}
+              onClick={() => toggleFilter(key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full font-medium transition-all ${
+                filters[key]
+                  ? `${active} ring-1 shadow-sm`
+                  : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${filters[key] ? dot : "bg-gray-300"}`}
+              />
+              {label}
+              {counts[key] > 0 && (
+                <span
+                  className={`text-[10px] ml-0.5 ${filters[key] ? "opacity-70" : "opacity-50"}`}
+                >
+                  ({counts[key]})
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Map Container */}
-      <div className="h-[500px] rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+      {/* Route summary strip */}
+      {routePoints.length >= 2 && (
+        <div className="flex items-center gap-2 text-xs bg-gradient-to-r from-green-50 via-blue-50 to-red-50 rounded-lg px-4 py-2.5 border border-gray-200">
+          <span className="flex items-center gap-1.5 text-green-700 font-semibold shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            {trip.origin?.city || "Origin"}
+          </span>
+          {(trip.destinations?.length || 0) > 0 && (
+            <>
+              <span className="border-t-2 border-dashed border-blue-300 flex-1 mx-1" />
+              {trip.destinations
+                .filter((d) => d.city)
+                .map((d, i) => (
+                  <React.Fragment key={i}>
+                    <span className="flex items-center gap-1 text-blue-700 font-medium shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      {d.city}
+                    </span>
+                    {i <
+                      trip.destinations.filter((dd) => dd.city).length - 1 && (
+                      <span className="border-t-2 border-dashed border-blue-300 w-3 mx-0.5" />
+                    )}
+                  </React.Fragment>
+                ))}
+            </>
+          )}
+          <span className="border-t-2 border-dashed border-red-300 flex-1 mx-1" />
+          <span className="flex items-center gap-1.5 text-red-700 font-semibold shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            {trip.mainDestination?.city || "Destination"}
+          </span>
+        </div>
+      )}
+
+      {/* Map */}
+      <div className="h-[520px] rounded-xl overflow-hidden border border-gray-200 shadow-sm">
         <MapContainer
-          center={center}
-          zoom={5}
+          center={[20, 0]}
+          zoom={3}
           style={{ height: "100%", width: "100%" }}
         >
           <TileLayer
@@ -154,8 +267,9 @@ export default function TripMap({ trip }) {
             attribution="&copy; OpenStreetMap contributors"
             maxZoom={19}
           />
+          <AutoFitBounds points={fitPoints} />
 
-          {/* Origin Marker */}
+          {/* Origin */}
           {filters.origin && trip?.origin?.lat && trip?.origin?.lng && (
             <Marker
               position={[trip.origin.lat, trip.origin.lng]}
@@ -172,7 +286,7 @@ export default function TripMap({ trip }) {
             </Marker>
           )}
 
-          {/* Main Destination Marker */}
+          {/* Main Destination */}
           {filters.destination &&
             trip?.mainDestination?.lat &&
             trip?.mainDestination?.lng && (
@@ -191,25 +305,44 @@ export default function TripMap({ trip }) {
               </Marker>
             )}
 
-          {/* Route Line */}
-          {filters.route &&
-            trip?.origin?.lat &&
-            trip?.origin?.lng &&
-            trip?.mainDestination?.lat &&
-            trip?.mainDestination?.lng && (
-              <Polyline
-                positions={[
-                  [trip.origin.lat, trip.origin.lng],
-                  [trip.mainDestination.lat, trip.mainDestination.lng],
-                ]}
-                color="#3b82f6"
-                weight={3}
-                opacity={0.7}
-                dashArray="5, 5"
-              />
-            )}
+          {/* Intermediate Stops */}
+          {filters.stops &&
+            trip?.destinations
+              ?.filter((d) => d.lat && d.lng)
+              .map((d, idx) => (
+                <Marker
+                  key={`stop-${idx}`}
+                  position={[d.lat, d.lng]}
+                  icon={createEmojiIcon("🔵", 34)}
+                >
+                  <Popup>
+                    <div className="text-sm font-semibold">
+                      Stop {idx + 1}: {d.city}
+                    </div>
+                    <div className="text-xs text-gray-600">{d.country}</div>
+                    {d.displayName && (
+                      <div className="text-xs text-gray-400 mt-0.5 max-w-[200px] truncate">
+                        {d.displayName}
+                      </div>
+                    )}
+                  </Popup>
+                </Marker>
+              ))}
 
-          {/* Attractions Markers */}
+          {/* Route Polyline — through all waypoints */}
+          {filters.route && routePoints.length >= 2 && (
+            <Polyline
+              positions={routePoints}
+              pathOptions={{
+                color: "#3b82f6",
+                weight: 3,
+                dashArray: "8 6",
+                opacity: 0.7,
+              }}
+            />
+          )}
+
+          {/* Attractions */}
           {filters.attractions &&
             trip?.attractions?.map(
               (attr, idx) =>
@@ -235,7 +368,7 @@ export default function TripMap({ trip }) {
                 ),
             )}
 
-          {/* Accommodations Markers */}
+          {/* Accommodations */}
           {filters.accommodations &&
             trip?.accommodations?.map(
               (acc, idx) =>
@@ -250,7 +383,7 @@ export default function TripMap({ trip }) {
                       <div className="text-sm font-semibold">{acc.name}</div>
                       <div className="text-xs text-gray-600">{acc.address}</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {new Date(acc.checkIn).toLocaleDateString()} -{" "}
+                        {new Date(acc.checkIn).toLocaleDateString()} –{" "}
                         {new Date(acc.checkOut).toLocaleDateString()}
                       </div>
                       {acc.priceTotal && (
@@ -263,7 +396,7 @@ export default function TripMap({ trip }) {
                 ),
             )}
 
-          {/* Dining Markers */}
+          {/* Dining */}
           {filters.dining &&
             trip?.dining?.map(
               (dine, idx) =>
@@ -289,7 +422,7 @@ export default function TripMap({ trip }) {
                 ),
             )}
 
-          {/* Transport Start/End Points */}
+          {/* Transport */}
           {filters.transport &&
             trip?.transport?.map(
               (trans, idx) =>
@@ -325,10 +458,14 @@ export default function TripMap({ trip }) {
         </MapContainer>
       </div>
 
-      {/* Info */}
-      <div className="text-xs text-gray-500 italic p-2 bg-gray-50 rounded-lg">
-        Click on any marker to see more details. Use the filter buttons to
-        show/hide different trip elements.
+      {/* Legend */}
+      <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+        <span className="italic">
+          Click any marker for details. Toggle layers above to filter the map.
+        </span>
+        <span className="font-medium text-gray-600">
+          {fitPoints.length} point{fitPoints.length !== 1 ? "s" : ""} shown
+        </span>
       </div>
     </div>
   );
