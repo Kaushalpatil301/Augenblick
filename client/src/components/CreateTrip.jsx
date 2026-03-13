@@ -8,6 +8,8 @@ import {
   Navigation,
   Flag,
   CircleDot,
+  Leaf,
+  Shield,
 } from "lucide-react";
 import { createTrip } from "../api/trips";
 import {
@@ -145,6 +147,8 @@ export default function CreateTrip({
   const [destination, setDestination] = useState(null);
   const [stops, setStops] = useState([]);
   const [pickMode, setPickMode] = useState(MODE_ORIGIN);
+  const [ecoRoute, setEcoRoute] = useState(false);
+  const [safetyRoute, setSafetyRoute] = useState(false);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -494,7 +498,7 @@ export default function CreateTrip({
           /* ── Step 2: Map Route Picker ── */
           <div className="space-y-3 mt-2">
             {/* Mode selector */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <Button
                 type="button"
                 size="sm"
@@ -536,6 +540,40 @@ export default function CreateTrip({
               >
                 <CircleDot size={14} />
                 Add Stop
+              </Button>
+              
+              <div className="h-6 w-px bg-[#E5E7EB] mx-1 hidden sm:block"></div>
+
+              {/* Eco & Safety Route Toggles */}
+              <Button
+                type="button"
+                size="sm"
+                variant={ecoRoute ? "default" : "outline"}
+                className={
+                  ecoRoute
+                    ? "gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                    : "gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                }
+                onClick={() => setEcoRoute(!ecoRoute)}
+                title="Prioritize eco-friendly travel options"
+              >
+                <Leaf size={14} />
+                Eco Route
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={safetyRoute ? "default" : "outline"}
+                className={
+                  safetyRoute
+                    ? "gap-1.5 bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                    : "gap-1.5 text-purple-700 border-purple-200 hover:bg-purple-50 hover:text-purple-800"
+                }
+                onClick={() => setSafetyRoute(!safetyRoute)}
+                title="Prioritize well-lit and secure travel options"
+              >
+                <Shield size={14} />
+                Women Safety Route
               </Button>
             </div>
 

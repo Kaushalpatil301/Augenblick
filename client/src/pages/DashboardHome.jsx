@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Map,
   Plane,
@@ -25,7 +25,7 @@ const getCurrentLocationDraft = () =>
       city: "Mumbai",
       country: "India",
       displayName: "Mumbai, Maharashtra, India",
-      lat: 19.0760,
+      lat: 19.076,
       lng: 72.8777,
     };
 
@@ -72,6 +72,7 @@ const getCurrentLocationDraft = () =>
   });
 
 export default function DashboardHome() {
+  const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -148,10 +149,14 @@ export default function DashboardHome() {
             friends seamlessly.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Button className="bg-[#2E7D32] hover:bg-[#2E7D32]/90 text-white font-['Lato'] rounded-xl px-6 py-2">
+            <Button
+              onClick={() => setCreateTripOpen(true)}
+              className="bg-[#2E7D32] hover:bg-[#2E7D32]/90 text-white font-['Lato'] rounded-xl px-6 py-2"
+            >
               Create New Trip
             </Button>
             <Button
+              onClick={() => navigate("/dashboard/explore")}
               variant="outline"
               className="border-[#2E7D32] text-[#2E7D32] hover:bg-[#F5F5F0] font-['Lato'] rounded-xl px-6 py-2"
             >
@@ -172,25 +177,52 @@ export default function DashboardHome() {
               title: "Create Trip",
               icon: <Plus size={24} />,
               bg: "bg-[#F5F5F0]",
+              onClick: () => setCreateTripOpen(true),
             },
             {
               title: "Join Trip",
               icon: <Users size={24} />,
               bg: "bg-[#F5F5F0]",
+              onClick: () => navigate("/dashboard/friends"),
             },
             {
               title: "AI Trip Generator",
               icon: <Sparkles size={24} />,
               bg: "bg-[#F5F5F0]",
+              onClick: () => {
+                document
+                  .getElementById("ai-assistant")
+                  ?.scrollIntoView({ behavior: "smooth" });
+                // If it's already in view, maybe give it a little pulse effect
+                const el = document.getElementById("ai-assistant");
+                if (el) {
+                  el.classList.add(
+                    "ring-4",
+                    "ring-[#F4A261]",
+                    "ring-opacity-50",
+                  );
+                  setTimeout(
+                    () =>
+                      el.classList.remove(
+                        "ring-4",
+                        "ring-[#F4A261]",
+                        "ring-opacity-50",
+                      ),
+                    1000,
+                  );
+                }
+              },
             },
             {
               title: "Explore Destinations",
               icon: <Compass size={24} />,
               bg: "bg-[#F5F5F0]",
+              onClick: () => navigate("/dashboard/explore"),
             },
           ].map((item, idx) => (
             <div
               key={idx}
+              onClick={item.onClick}
               className="bg-white border border-[#E5E7EB] rounded-[14px] p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
             >
               <div
@@ -290,35 +322,65 @@ export default function DashboardHome() {
 
           {/* 5. Recommended Destinations */}
           <section>
-            <h3 className="text-3xl font-semibold font-['Playfair_Display'] text-[#2C2C2C] mb-8">
-              Recommended Destinations
-            </h3>
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-3xl font-semibold font-['Playfair_Display'] text-[#2C2C2C]">
+                Recommended Destinations
+              </h3>
+              <Link
+                to="/dashboard/explore"
+                className="text-[#F4A261] hover:text-[#F4A261]/80 font-['Lato'] font-medium flex items-center gap-1 text-base"
+              >
+                Explore More <ArrowRight size={18} />
+              </Link>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 {
-                  name: "Santorini, Greece",
-                  desc: "Whitewashed houses and stunning sunsets.",
-                },
-                {
                   name: "Kyoto, Japan",
                   desc: "Historic temples and traditional gardens.",
+                  image:
+                    "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=600&auto=format&fit=crop",
+                },
+                {
+                  name: "Santorini, Greece",
+                  desc: "Whitewashed houses and stunning sunsets.",
+                  image:
+                    "https://images.unsplash.com/photo-1570077188670-e3a8d69ac542?q=80&w=600&auto=format&fit=crop",
+                },
+                {
+                  name: "Bali, Indonesia",
+                  desc: "Iconic rice paddies and volcanic mountains.",
+                  image:
+                    "https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=600&auto=format&fit=crop",
+                },
+                {
+                  name: "Machu Picchu, Peru",
+                  desc: "An Incan citadel set high in the Andes Mountains.",
+                  image:
+                    "https://images.unsplash.com/photo-1526392060635-9d6019884377?q=80&w=600&auto=format&fit=crop",
                 },
               ].map((dest, idx) => (
                 <div
                   key={idx}
-                  className="bg-white border border-[#E5E7EB] rounded-[14px] overflow-hidden shadow-sm group"
+                  className="bg-white border border-[#E5E7EB] rounded-[14px] overflow-hidden shadow-sm group hover:shadow-md transition-all group-hover:border-[#2E7D32]/50 cursor-pointer"
+                  onClick={() => navigate("/dashboard/explore")}
                 >
-                  <div className="h-32 bg-[#F5F5F0] flex items-center justify-center text-[#6D4C41]">
-                    {/* Placeholder for image */}
-                    <Map size={32} className="opacity-20" />
+                  <div className="h-32 bg-[#F5F5F0] overflow-hidden relative">
+                    <img
+                      src={dest.image}
+                      alt={dest.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                   </div>
                   <div className="p-4">
                     <h4 className="font-bold font-['Playfair_Display'] text-[#2C2C2C] mb-1">
                       {dest.name}
                     </h4>
-                    <p className="text-[#6D4C41] text-sm mb-4">{dest.desc}</p>
+                    <p className="text-[#6D4C41] text-sm mb-4 line-clamp-1">
+                      {dest.desc}
+                    </p>
                     <button className="text-sm font-medium text-[#F4A261] group-hover:text-[#F4A261]/80 transition-colors">
-                      + Add to Trip
+                      + View Details
                     </button>
                   </div>
                 </div>
@@ -358,7 +420,10 @@ export default function DashboardHome() {
 
         <div className="space-y-8">
           {/* 4. AI Travel Assistant Panel */}
-          <section>
+          <section
+            id="ai-assistant"
+            className="scroll-mt-24 transition-all duration-500 rounded-[14px]"
+          >
             <div className="bg-[#2E7D32] rounded-[14px] p-6 text-white shadow-md relative overflow-hidden">
               <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full border border-white/20 pointer-events-none" />
               <div className="flex items-center gap-2 mb-4">

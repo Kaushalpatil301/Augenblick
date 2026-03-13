@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Users, UserMinus, Search, Mail } from "lucide-react";
+import { Users, UserMinus, Search, Mail, Compass } from "lucide-react";
 import { getFriends } from "../api/friends";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 export default function FriendsList() {
   const [friends, setFriends] = useState([]);
@@ -31,81 +29,96 @@ export default function FriendsList() {
   );
 
   return (
-    <div className="p-6">
-      <Card className="max-w-4xl mx-auto border-none shadow-sm bg-white/80 backdrop-blur-md">
-        <CardHeader className="border-b border-gray-100 flex flex-row items-center justify-between pb-4">
-          <div>
-            <CardTitle className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="text-blue-600" />
-              Your Friends
-            </CardTitle>
-            <p className="text-sm text-gray-500 mt-1">
-              Manage your connections and travel buddies
-            </p>
-          </div>
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Filter friends..."
-              className="pl-9 h-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredFriends.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredFriends.map((friend) => (
-                <div
-                  key={friend._id}
-                  className="flex items-center p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-md transition-all duration-200 group"
-                >
-                  <Avatar className="h-12 w-12 border-2 border-white shadow-sm mr-4">
-                    <AvatarImage src={friend.avatar?.url} alt={friend.username} />
-                    <AvatarFallback>{friend.username?.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">
-                      {friend.username}
-                    </p>
-                    <div className="flex items-center text-xs text-gray-500 mt-1">
-                      <Mail size={12} className="mr-1" />
-                      <span className="truncate">{friend.email}</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-opacity rounded-full"
-                    title="Remove Friend"
-                  >
-                    <UserMinus size={18} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : searchTerm ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No friends found matching "{searchTerm}"</p>
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="bg-blue-50 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users size={32} className="text-blue-500" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">No friends yet</h3>
-              <p className="text-gray-500 mt-1 max-w-xs mx-auto">
-                Search for other users and send friend requests to start building your travel circle!
+    <div className="p-6 md:p-10 font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] min-h-[calc(100vh-4rem)] relative">
+      {/* Background textures */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl mix-blend-overlay pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-96 h-96 bg-[#2E7D32]/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="max-w-5xl mx-auto relative z-10">
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+          
+          {/* Header */}
+          <div className="px-6 py-6 md:py-8 border-b border-[#E5E7EB] bg-[#fdfbf9] flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold font-['Playfair_Display'] text-[#2C2C2C] flex items-center gap-3">
+                <Users className="text-[#2E7D32]" size={32} />
+                Travel Companions
+              </h2>
+              <p className="text-[#6D4C41] text-base mt-2 font-medium">
+                Manage your connections and find buddies for your next adventure.
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-[#6D4C41]/60" />
+              <input
+                type="text"
+                placeholder="Find a friend..."
+                className="w-full pl-10 pr-4 py-3 text-sm font-['Lato'] text-[#2C2C2C] bg-white border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32] transition-all shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 flex-grow bg-[#F5F5F0]/30">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full py-20 text-[#6D4C41]">
+                 <div className="w-10 h-10 border-4 border-[#2E7D32]/20 border-t-[#2E7D32] rounded-full animate-spin mb-4"></div>
+                 <p className="text-lg font-medium">Gathering your crew...</p>
+              </div>
+            ) : filteredFriends.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredFriends.map((friend) => (
+                  <div
+                    key={friend._id}
+                    className="flex items-center p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#2E7D32]/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group"
+                  >
+                    <Avatar className="h-14 w-14 border border-[#E5E7EB] shadow-sm mr-4 ring-2 ring-transparent group-hover:ring-[#2E7D32]/20 transition-all">
+                      <AvatarImage src={friend.avatar?.url} alt={friend.username} className="object-cover" />
+                      <AvatarFallback className="bg-[#F5F5F0] text-[#6D4C41] font-bold text-lg">
+                        {friend.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="font-bold text-lg text-[#2C2C2C] font-['Playfair_Display'] truncate group-hover:text-[#2E7D32] transition-colors">
+                        {friend.username}
+                      </p>
+                      <div className="flex items-center text-xs text-[#6D4C41] mt-0.5">
+                        <Mail size={12} className="mr-1.5 opacity-70" />
+                        <span className="truncate">{friend.email}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 text-[#6D4C41]/50 hover:text-red-600 hover:bg-red-50 transition-all rounded-full h-8 w-8 shrink-0"
+                      title="Remove Friend"
+                    >
+                      <UserMinus size={16} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : searchTerm ? (
+              <div className="text-center py-20">
+                <p className="text-[#6D4C41] text-lg">No companions found matching <span className="font-bold">"{searchTerm}"</span>.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-20 h-full max-w-sm mx-auto">
+                <div className="bg-[#2E7D32]/10 h-20 w-20 rounded-full flex items-center justify-center mb-6">
+                  <Compass size={40} className="text-[#2E7D32]" />
+                </div>
+                <h3 className="text-2xl font-bold font-['Playfair_Display'] text-[#2C2C2C] mb-3">No companions yet</h3>
+                <p className="text-[#6D4C41] text-base leading-relaxed">
+                  Search for other explorers and send friend requests to start building your travel circle! They'll show up here once they accept.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

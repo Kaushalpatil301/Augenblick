@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.routes.js";
 import friendRouter from "./routes/friend.routes.js";
 import tripRouter from "./routes/trip.routes.js";
 import amadeusRouter from "./routes/amadeus.routes.js";
+import expenseRouter from "./routes/expense.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -35,6 +36,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/friends", friendRouter);
 app.use("/api/v1/trips", tripRouter);
 app.use("/api/v1/amadeus", amadeusRouter);
+app.use("/api/v1/expenses", expenseRouter);
 app.get("/api/v1/test", (req, res) => {
   res.json({ message: "Test route is working!" });
 });

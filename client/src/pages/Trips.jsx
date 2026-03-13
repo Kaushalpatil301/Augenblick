@@ -99,108 +99,140 @@ export default function Trips() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-[#6D4C41]">
-            Loading trips...
+          <div className="flex flex-col items-center justify-center py-20 text-[#6D4C41]">
+            <div className="w-10 h-10 border-4 border-[#2E7D32]/20 border-t-[#2E7D32] rounded-full animate-spin mb-4"></div>
+            <p className="text-lg font-medium">Loading your trips...</p>
           </div>
         ) : trips.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-[14px] border border-[#E5E7EB] shadow-sm max-w-2xl mx-auto">
-            <p className="text-[#6D4C41] text-lg mb-6">
-              No trips yet. Create your first adventure!
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm max-w-2xl mx-auto">
+            <div className="w-20 h-20 bg-[#F5F5F0] rounded-full flex items-center justify-center mb-6">
+              <MapPin size={32} className="text-[#6D4C41]/50" />
+            </div>
+            <h3 className="font-bold text-2xl font-['Playfair_Display'] text-[#2C2C2C] mb-2">
+              No Trips Yet
+            </h3>
+            <p className="text-[#6D4C41] text-lg mb-8 text-center max-w-sm px-4">
+              Your dashboard is looking a little empty. Time to plan a new adventure!
             </p>
             <CreateTrip onTripCreated={fetchTrips} />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {trips.map((trip) => (
-              <div
-                key={trip._id}
-                onClick={() => navigate(`/dashboard/trip/${trip._id}`)}
-                className="bg-white rounded-[14px] border border-[#E5E7EB] shadow-sm p-6 hover:shadow-md hover:border-[#F4A261]/50 cursor-pointer group transition-all flex flex-col min-h-[220px]"
-              >
-                <h3 className="font-bold text-2xl font-['Playfair_Display'] text-[#2C2C2C] truncate group-hover:text-[#2E7D32] transition-colors mb-4 pr-1">
-                  {trip.name}
-                </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {trips.map((trip) => {
+              const destCount = trip.destinations?.length || 0;
+              const hasMain = trip.mainDestination?.city;
+              const hasIntermediates = destCount > 0;
+              
+              // Determine what to show for the primary location
+              let displayCity = "";
+              let displayCountry = "";
+              
+              if (hasMain) {
+                displayCity = trip.mainDestination.city;
+                displayCountry = trip.mainDestination.country;
+              } else if (hasIntermediates) {
+                 // Fallback if mainDestination is missing but intermediate stops exist (edge case)
+                 const lastDest = trip.destinations[destCount - 1];
+                 displayCity = lastDest.city;
+                 displayCountry = lastDest.country;
+              }
 
-                <div className="space-y-3 text-base text-[#6D4C41] flex-grow">
-                  <div className="flex items-start gap-3">
-                    <MapPin
-                      size={18}
-                      className="text-[#2E7D32] mt-0.5 shrink-0"
-                    />
-                    {trip.destinations?.length > 0 ? (
-                      <span className="leading-snug">
-                        {trip.destinations
-                          .map((d) => `${d.city}, ${d.country}`)
-                          .join(" • ")}
-                      </span>
-                    ) : (
-                      <span className="text-[#6D4C41]/60 italic">
-                        No destinations yet
-                      </span>
-                    )}
-                  </div>
+              return (
+                <div
+                  key={trip._id}
+                  onClick={() => navigate(`/dashboard/trip/${trip._id}`)}
+                  className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-[#2E7D32]/30 cursor-pointer group transition-all duration-300 flex flex-col overflow-hidden min-h-[260px]"
+                >
+                  <div className="h-2 bg-[#2E7D32]"></div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <h3 className="font-bold text-2xl font-['Playfair_Display'] text-[#2C2C2C] line-clamp-2 group-hover:text-[#2E7D32] transition-colors mb-5 pr-1">
+                      {trip.name}
+                    </h3>
 
-                  <div className="flex items-center gap-3">
-                    <CalendarDays
-                      size={18}
-                      className="text-[#6D4C41] shrink-0"
-                    />
-                    <span>
-                      {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
-                    </span>
-                  </div>
+                    <div className="space-y-4 text-base text-[#6D4C41] flex-grow mb-6">
+                      <div className="flex items-start gap-3">
+                        <MapPin
+                          size={18}
+                          className="text-[#F4A261] mt-0.5 shrink-0"
+                        />
+                        {displayCity ? (
+                          <span className="leading-snug font-medium text-[#2C2C2C]">
+                            {displayCity}, {displayCountry}
+                            {hasIntermediates && (
+                              <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#F4A261]/10 text-[#F4A261] border border-[#F4A261]/20">
+                                +{destCount} STOP{destCount > 1 ? 'S' : ''}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-[#6D4C41]/60 italic">
+                            No destinations yet
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <IndianRupee
-                      size={18}
-                      className="text-[#2E7D32] shrink-0"
-                    />
-                    <span className="font-medium">
-                      Budget: ₹{trip.budget.toLocaleString()}
-                    </span>
-                  </div>
+                      <div className="flex items-center gap-3 bg-[#F5F5F0] p-3 rounded-xl border border-[#E5E7EB]/50">
+                        <CalendarDays
+                          size={18}
+                          className="text-[#6D4C41] shrink-0"
+                        />
+                        <span className="font-medium text-[#2C2C2C] text-sm">
+                          {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
+                        </span>
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <Users size={18} className="text-[#F4A261] shrink-0" />
-                    <span>
-                      {trip.members.length} Explorer
-                      {trip.members.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </div>
+                      <div className="flex items-center gap-3">
+                        <IndianRupee
+                          size={18}
+                          className="text-[#2E7D32] shrink-0"
+                        />
+                        <span className="font-bold text-[#2C2C2C]">
+                          ₹{trip.budget.toLocaleString()}
+                        </span>
+                      </div>
 
-                <div className="mt-6 pt-4 border-t border-[#E5E7EB] flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-[#F5F5F0] text-[#6D4C41] flex items-center justify-center text-[10px] font-bold">
-                      {trip.createdBy?.username
-                        ? trip.createdBy.username[0].toUpperCase()
-                        : "U"}
+                      <div className="flex items-center gap-3">
+                        <Users size={18} className="text-[#6D4C41]/80 shrink-0" />
+                        <span className="font-medium">
+                          {trip.members.length} Explorer{trip.members.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-[#6D4C41] font-medium">
-                      {trip.createdBy?.username}
-                    </span>
-                  </div>
 
-                  {trip.createdBy?._id === currentUserId ? (
-                    <button
-                      onClick={(e) => handleDeleteTrip(e, trip._id)}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[#6D4C41] hover:text-[#2C2C2C] hover:bg-[#F5F5F0] px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-[#E5E7EB]"
-                      title="Delete Trip"
-                    >
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => handleLeaveTrip(e, trip._id)}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[#6D4C41] hover:text-[#2C2C2C] hover:bg-[#F5F5F0] px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-[#E5E7EB]"
-                      title="Leave Trip"
-                    >
-                      <LogOut size={14} /> Leave
-                    </button>
-                  )}
+                    <div className="pt-4 border-t border-[#E5E7EB] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[#F5F5F0] text-[#6D4C41] flex items-center justify-center text-[11px] font-bold border border-[#E5E7EB]">
+                          {trip.createdBy?.username
+                            ? trip.createdBy.username[0].toUpperCase()
+                            : "U"}
+                        </div>
+                        <span className="text-sm text-[#6D4C41] font-bold">
+                          {trip.createdBy?.username}
+                        </span>
+                      </div>
+
+                      {trip.createdBy?._id === currentUserId ? (
+                        <button
+                          onClick={(e) => handleDeleteTrip(e, trip._id)}
+                          className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F5F5F0] text-[#6D4C41] hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Delete Trip"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => handleLeaveTrip(e, trip._id)}
+                          className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F5F5F0] text-[#6D4C41] hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Leave Trip"
+                        >
+                          <LogOut size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

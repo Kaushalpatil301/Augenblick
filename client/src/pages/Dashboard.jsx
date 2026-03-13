@@ -7,11 +7,23 @@ import Trips from "./Trips";
 import TripDetails from "./TripDetails";
 import DashboardHome from "./DashboardHome";
 import { Button } from "../components/ui/button";
-import { Map, Users, Plane, Lock, LogOut, User, Pencil, RefreshCw, X, Check } from "lucide-react";
+import {
+  Map,
+  Users,
+  Plane,
+  Lock,
+  LogOut,
+  User,
+  Pencil,
+  RefreshCw,
+  X,
+  Check,
+} from "lucide-react";
 import VoiceChat from "../components/VoiceChat";
 import FinalizedTrips from "./FinalizedTrips";
 import FinalizedItinerary from "./FinalizedItinerary";
 import BookingPage from "./BookingPage";
+import ExploreDestinations from "./ExploreDestinations";
 import { Link } from "react-router-dom";
 import {
   Routes,
@@ -32,7 +44,11 @@ export default function Dashboard() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState({ username: "", email: "", phone: "" });
+  const [editForm, setEditForm] = useState({
+    username: "",
+    email: "",
+    phone: "",
+  });
   const [previewAvatar, setPreviewAvatar] = useState("");
   const dropdownRef = useRef(null);
 
@@ -42,10 +58,16 @@ export default function Dashboard() {
       const user = stored?.data?.user || stored?.user || stored;
       if (user) {
         setCurrentUser(user);
-        setEditForm({ username: user.username || "", email: user.email || "", phone: user.phone || "" });
+        setEditForm({
+          username: user.username || "",
+          email: user.email || "",
+          phone: user.phone || "",
+        });
         setPreviewAvatar(user.avatar?.url || getRandomAvatar(user.username));
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Close dropdown on outside click
@@ -63,7 +85,9 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       await logoutUser();
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     navigate("/login");
@@ -104,7 +128,8 @@ export default function Dashboard() {
     }
   };
 
-  const avatarUrl = currentUser?.avatar?.url || previewAvatar || getRandomAvatar("guest");
+  const avatarUrl =
+    currentUser?.avatar?.url || previewAvatar || getRandomAvatar("guest");
   const displayName = currentUser?.username || "User";
 
   return (
@@ -122,13 +147,13 @@ export default function Dashboard() {
           </Link>
 
           <nav className="flex items-center gap-2 sm:gap-4">
-           
             <NavLink
               to="/dashboard/friends"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-[#6D4C41]/10 text-[#6D4C41]"
-                  : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#6D4C41]"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#6D4C41]/10 text-[#6D4C41]"
+                    : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#6D4C41]"
                 }`
               }
             >
@@ -138,9 +163,10 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/trips"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-[#2E7D32]/10 text-[#2E7D32]"
-                  : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#2E7D32]"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#2E7D32]/10 text-[#2E7D32]"
+                    : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#2E7D32]"
                 }`
               }
             >
@@ -150,9 +176,10 @@ export default function Dashboard() {
             <NavLink
               to="/dashboard/finalized"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                  ? "bg-[#6D4C41]/10 text-[#6D4C41]"
-                  : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#6D4C41]"
+                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#6D4C41]/10 text-[#6D4C41]"
+                    : "text-[#6D4C41]/70 hover:bg-[#F5F5F0] hover:text-[#6D4C41]"
                 }`
               }
             >
@@ -170,7 +197,10 @@ export default function Dashboard() {
               {/* ── Profile Avatar Dropdown ── */}
               <div className="relative" ref={dropdownRef}>
                 <button
-                  onClick={() => { setDropdownOpen((v) => !v); setEditing(false); }}
+                  onClick={() => {
+                    setDropdownOpen((v) => !v);
+                    setEditing(false);
+                  }}
                   className="w-9 h-9 rounded-full border-2 border-[#2E7D32]/30 hover:border-[#2E7D32] transition-colors overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/40"
                   title={displayName}
                 >
@@ -178,7 +208,9 @@ export default function Dashboard() {
                     src={avatarUrl}
                     alt={displayName}
                     className="w-full h-full object-cover rounded-full bg-[#F5F5F0]"
-                    onError={(e) => { e.target.src = `https://i.pravatar.cc/150?u=${displayName}`; }}
+                    onError={(e) => {
+                      e.target.src = `https://i.pravatar.cc/150?u=${displayName}`;
+                    }}
                   />
                 </button>
 
@@ -191,7 +223,9 @@ export default function Dashboard() {
                           src={editing ? previewAvatar : avatarUrl}
                           alt={displayName}
                           className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover bg-[#F5F5F0]"
-                          onError={(e) => { e.target.src = `https://i.pravatar.cc/150?u=${displayName}`; }}
+                          onError={(e) => {
+                            e.target.src = `https://i.pravatar.cc/150?u=${displayName}`;
+                          }}
                         />
                         {editing && (
                           <button
@@ -234,29 +268,50 @@ export default function Dashboard() {
                     {editing && (
                       <div className="px-5 py-4 space-y-3 border-t border-[#E5E7EB]">
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Username</label>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">
+                            Username
+                          </label>
                           <input
                             type="text"
                             value={editForm.username}
-                            onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                username: e.target.value,
+                              }))
+                            }
                             className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Email</label>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">
+                            Email
+                          </label>
                           <input
                             type="email"
                             value={editForm.email}
-                            onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                email: e.target.value,
+                              }))
+                            }
                             className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Phone</label>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">
+                            Phone
+                          </label>
                           <input
                             type="tel"
                             value={editForm.phone}
-                            onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                phone: e.target.value,
+                              }))
+                            }
                             className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
                           />
                         </div>
@@ -311,6 +366,7 @@ export default function Dashboard() {
           <Route path="trip/:tripId" element={<TripDetails />} />
           <Route path="voice/:tripId" element={<VoiceChat />} />
           <Route path="book/:type/:id" element={<BookingPage />} />
+          <Route path="explore" element={<ExploreDestinations />} />
           <Route index element={<DashboardHome />} />
         </Routes>
       </main>
