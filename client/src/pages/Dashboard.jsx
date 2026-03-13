@@ -10,6 +10,7 @@ import { Map, ListOrdered, Users, Plane, Lock } from "lucide-react";
 import VoiceChat from "../components/VoiceChat";
 import FinalizedTrips from "./FinalizedTrips";
 import FinalizedItinerary from "./FinalizedItinerary";
+import BookingPage from "./BookingPage";
 import { Link } from "react-router-dom";
 import {
   Routes,
@@ -102,6 +103,7 @@ export default function Dashboard() {
           <Route path="finalized/:tripId" element={<FinalizedItinerary />} />
           <Route path="trip/:tripId" element={<TripDetails />} />
           <Route path="voice/:tripId" element={<VoiceChat />} />
+          <Route path="book/:type/:id" element={<BookingPage />} />
           <Route index element={<DashboardHome />} />
         </Routes>
       </main>

@@ -1045,6 +1045,7 @@ export default function TripDetails() {
                               Duration: {attr.duration}
                             </p>
                           )}
+                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + (attr._id || i), { state: { product: attr } })}>Book Now</Button>
                         </div>
                       ))}
                       {activities.length > 2 && (
@@ -1096,6 +1097,7 @@ export default function TripDetails() {
                             <MapPin size={12} />{" "}
                             {acc.neighborhood || acc.address}
                           </p>
+                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + (acc._id || i), { state: { product: acc } })}>Book Now</Button>
                         </div>
                       ))}
                       {accommodations.length > 2 && (
@@ -1139,6 +1141,7 @@ export default function TripDetails() {
                           <p className="text-sm font-medium font-['Lato'] text-[#2C2C2C]">
                             {trans.description || trans.details}
                           </p>
+                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + (trans._id || i), { state: { product: trans } })}>Book Now</Button>
                         </div>
                       ))}
                       {transport.length > 2 && (
@@ -1188,6 +1191,7 @@ export default function TripDetails() {
                           <p className="text-xs text-[#6D4C41] mt-1 font-semibold">
                             {dine.vibe || dine.cuisine}
                           </p>
+                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + (dine._id || i), { state: { product: dine } })}>Book Now</Button>
                         </div>
                       ))}
                       {dining.length > 2 && (
@@ -1285,6 +1289,7 @@ export default function TripDetails() {
                             {attr.match_reason}
                           </p>
                         )}
+                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + (attr._id || i), { state: { product: attr } })}>Book Now</Button>
                       </div>
                     ))}
                   {/* Accommodations */}
@@ -1325,6 +1330,7 @@ export default function TripDetails() {
                             </p>
                           </div>
                         )}
+                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + (acc._id || i), { state: { product: acc } })}>Book Now</Button>
                       </div>
                     ))}
                   {/* Transport */}
@@ -1365,6 +1371,7 @@ export default function TripDetails() {
                               </p>
                             )}
                         </div>
+                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + (trans._id || i), { state: { product: trans } })}>Book Now</Button>
                       </div>
                     ))}
                   {/* Dining */}
@@ -1404,6 +1411,7 @@ export default function TripDetails() {
                             {dine.must_try_dish}
                           </p>
                         )}
+                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + (dine._id || i), { state: { product: dine } })}>Book Now</Button>
                       </div>
                     ))}
                 </div>
@@ -1613,6 +1621,7 @@ export default function TripDetails() {
                             {attr.currency || "USD"} {attr.cost}
                           </span>
                         )}
+                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + attr._id, { state: { product: attr } })}>Book Now</Button>
                       </div>
                     ))
                   )}
@@ -1783,6 +1792,7 @@ export default function TripDetails() {
                             Nights: {acc.nights_count}
                           </span>
                         )}
+                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + acc._id, { state: { product: acc } })}>Book Now</Button>
                       </div>
                     ))
                   )}
@@ -1950,6 +1960,7 @@ export default function TripDetails() {
                             Travel Time: {trans.travel_time}
                           </p>
                         )}
+                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + trans._id, { state: { product: trans } })}>Book Now</Button>
                       </div>
                     ))
                   )}
@@ -2115,6 +2126,7 @@ export default function TripDetails() {
                             Must Try: {dine.must_try_dish}
                           </p>
                         )}
+                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + dine._id, { state: { product: dine } })}>Book Now</Button>
                       </div>
                     ))
                   )}
