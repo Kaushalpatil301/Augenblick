@@ -15,6 +15,7 @@ import {
   getTripMessages,
   leaveTrip,
   deleteTrip,
+  getTripActivities,
 } from "../controllers/trip.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -39,5 +40,6 @@ router.patch("/:tripId/route", updateTripRoute);
 router.get("/:tripId/messages", getTripMessages);
 router.post("/:tripId/leave", leaveTrip);
 router.delete("/:tripId", deleteTrip);
+router.get("/:tripId/activities", getTripActivities);
 
 export default router;

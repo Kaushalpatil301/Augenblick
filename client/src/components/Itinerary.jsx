@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from "react";
-import { 
-  Camera, 
-  Hotel, 
-  Utensils, 
-  Plane, 
-  MapPin, 
-  Clock, 
-  Lightbulb, 
-  Coffee, 
-  ChevronRight, 
-  Sparkles 
+import {
+  Camera,
+  Hotel,
+  Utensils,
+  Plane,
+  MapPin,
+  Clock,
+  Lightbulb,
+  Coffee,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 
@@ -32,7 +32,6 @@ const formatTime = (date) => {
 
 export default function Itinerary({ trip }) {
   const itinerary = trip?.itinerary;
-  console.log(itinerary)
   const hasRichItinerary = Array.isArray(itinerary?.days);
 
   // Convert trip data to timeline activities (original fallback logic)
@@ -46,21 +45,30 @@ export default function Itinerary({ trip }) {
       { key: "activities", type: "attraction", icon: Camera },
       { key: "accommodation", type: "accommodation", icon: Hotel },
       { key: "dining", type: "dining", icon: Utensils },
-      { key: "transport", type: "transport", icon: Plane }
+      { key: "transport", type: "transport", icon: Plane },
     ];
 
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       const data = agentData[cat.key]?.data || [];
       data.forEach((item, idx) => {
         items.push({
           id: `ai-${cat.key}-${idx}`,
           date: new Date(trip.startDate), // Default to start date if no date provided
           time: "AI Pick",
-          title: item.name || item.hotel_name || item.restaurantName || "Recommended Spot",
-          desc: item.insight || item.insider_tip || item.description || item.neighborhood || "",
+          title:
+            item.name ||
+            item.hotel_name ||
+            item.restaurantName ||
+            "Recommended Spot",
+          desc:
+            item.insight ||
+            item.insider_tip ||
+            item.description ||
+            item.neighborhood ||
+            "",
           type: cat.type,
           icon: cat.icon,
-          isAI: true
+          isAI: true,
         });
       });
     });
@@ -160,11 +168,16 @@ export default function Itinerary({ trip }) {
   // Icon colors based on type
   const getIconColor = (type) => {
     switch (type) {
-      case "attraction": return "text-pink-600 bg-pink-100";
-      case "accommodation": return "text-indigo-600 bg-indigo-100";
-      case "transport": return "text-teal-600 bg-teal-100";
-      case "dining": return "text-orange-600 bg-orange-100";
-      default: return "text-gray-600 bg-gray-100";
+      case "attraction":
+        return "text-pink-600 bg-pink-100";
+      case "accommodation":
+        return "text-indigo-600 bg-indigo-100";
+      case "transport":
+        return "text-teal-600 bg-teal-100";
+      case "dining":
+        return "text-orange-600 bg-orange-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
@@ -188,9 +201,12 @@ export default function Itinerary({ trip }) {
           <Sparkles size={32} className="text-indigo-500 animate-spin-slow" />
           <div className="absolute inset-0 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
         </div>
-        <h3 className="text-xl font-bold text-gray-800">AI is cooking your itinerary...</h3>
+        <h3 className="text-xl font-bold text-gray-800">
+          AI is cooking your itinerary...
+        </h3>
         <p className="text-sm text-gray-500 mt-2 text-center max-w-sm">
-          Our agents are busy researching Kodiak's best spots, history, and secret pro-tips. This usually takes about 30-60 seconds.
+          Our agents are busy researching Kodiak's best spots, history, and
+          secret pro-tips. This usually takes about 30-60 seconds.
         </p>
         <div className="mt-8 flex gap-2">
           <div className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
@@ -207,16 +223,21 @@ export default function Itinerary({ trip }) {
       <div className="space-y-8 p-2 sm:p-4 bg-[#F5F5F0] rounded-xl font-['Lato']">
         <div className="border-b border-[#E5E7EB] pb-6 mb-6">
           <h2 className="text-3xl font-bold text-[#2C2C2C] font-['Playfair_Display']">
-            {itinerary.location ? `Trip to ${itinerary.location}` : "Your Custom Itinerary"}
+            {itinerary.location
+              ? `Trip to ${itinerary.location}`
+              : "Your Custom Itinerary"}
           </h2>
           <div className="flex flex-wrap items-center gap-4 mt-3">
             <div className="flex items-center gap-1.5 text-[#6D4C41] text-sm font-medium bg-white px-3 py-1.5 rounded-full border border-[#E5E7EB] shadow-sm">
-              <MapPin size={16} className="text-[#2E7D32]"/>
-              <span>{itinerary.duration} • {itinerary.nights_count} nights</span>
+              <MapPin size={16} className="text-[#2E7D32]" />
+              <span>
+                {itinerary.duration} • {itinerary.nights_count} nights
+              </span>
             </div>
             {itinerary.estimated_total_cost > 0 && (
               <div className="flex items-center gap-1.5 text-[#2E7D32] text-sm font-bold bg-[#2E7D32]/10 px-3 py-1.5 rounded-full border border-[#2E7D32]/20 shadow-sm">
-                Estimated Cost: {itinerary.currency || "USD"} {itinerary.estimated_total_cost}
+                Estimated Cost: {itinerary.currency || "USD"}{" "}
+                {itinerary.estimated_total_cost}
               </div>
             )}
           </div>
@@ -228,15 +249,19 @@ export default function Itinerary({ trip }) {
               <div className="flex items-center gap-2 mb-2 text-[#F4A261] font-bold text-xs tracking-wider uppercase">
                 <Hotel size={16} /> Base Accommodation
               </div>
-              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] mb-2">{itinerary.base_accommodation.name}</h3>
+              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] mb-2">
+                {itinerary.base_accommodation.name}
+              </h3>
               {itinerary.base_accommodation.neighborhood && (
                 <p className="text-sm text-[#6D4C41] flex items-center gap-1.5 mb-4">
-                  <MapPin size={14}/> {itinerary.base_accommodation.neighborhood}
+                  <MapPin size={14} />{" "}
+                  {itinerary.base_accommodation.neighborhood}
                 </p>
               )}
               {itinerary.base_accommodation.cost_per_night > 0 && (
                 <p className="text-sm font-bold text-[#2E7D32] bg-[#2E7D32]/10 w-fit px-3 py-1 rounded-md">
-                  {itinerary.currency || "USD"} {itinerary.base_accommodation.cost_per_night} / night
+                  {itinerary.currency || "USD"}{" "}
+                  {itinerary.base_accommodation.cost_per_night} / night
                 </p>
               )}
             </div>
@@ -244,17 +269,23 @@ export default function Itinerary({ trip }) {
         )}
 
         {itinerary.days.map((day, dIdx) => (
-          <div key={dIdx} className="relative pl-8 border-l-2 border-dashed border-[#2E7D32]/30 last:border-0 pb-12">
+          <div
+            key={dIdx}
+            className="relative pl-8 border-l-2 border-dashed border-[#2E7D32]/30 last:border-0 pb-12"
+          >
             {/* Day Bubble */}
             <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold shadow-md">
               {day.day_number}
             </div>
 
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] leading-tight">{day.day_label}</h3>
+              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] leading-tight">
+                {day.day_label}
+              </h3>
               {day.neighborhood_focus && (
                 <p className="text-sm font-semibold text-[#6D4C41] mt-1.5 flex items-center gap-1.5">
-                  <MapPin size={14} className="text-[#F4A261]"/> Daily Focus: {day.neighborhood_focus}
+                  <MapPin size={14} className="text-[#F4A261]" /> Daily Focus:{" "}
+                  {day.neighborhood_focus}
                 </p>
               )}
             </div>
@@ -262,44 +293,65 @@ export default function Itinerary({ trip }) {
             <div className="space-y-5">
               {day.slots?.map((slot, sIdx) => {
                 let SlotIcon = Clock;
-                let bgTypeClass = "bg-[#F4A261]/10 text-[#F4A261] border-[#F4A261]/20";
-                
+                let bgTypeClass =
+                  "bg-[#F4A261]/10 text-[#F4A261] border-[#F4A261]/20";
+
                 if (slot.slot_type === "dining") {
                   SlotIcon = Utensils;
-                  bgTypeClass = "bg-[#F4A261]/10 text-[#E67E22] border-[#F4A261]/20";
+                  bgTypeClass =
+                    "bg-[#F4A261]/10 text-[#E67E22] border-[#F4A261]/20";
                 } else if (slot.slot_type === "activity") {
                   SlotIcon = Camera;
                   bgTypeClass = "bg-blue-50 text-blue-600 border-blue-200";
                 } else if (slot.slot_type === "transport") {
                   SlotIcon = Plane;
                   bgTypeClass = "bg-teal-50 text-teal-600 border-teal-200";
-                } else if (slot.slot_type === "check-in" || slot.slot_type === "check-out") {
+                } else if (
+                  slot.slot_type === "check-in" ||
+                  slot.slot_type === "check-out"
+                ) {
                   SlotIcon = Hotel;
-                  bgTypeClass = "bg-purple-50 text-purple-600 border-purple-200";
+                  bgTypeClass =
+                    "bg-purple-50 text-purple-600 border-purple-200";
                 }
 
                 return (
-                  <div key={sIdx} className="bg-white rounded-[14px] overflow-hidden border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row group">
+                  <div
+                    key={sIdx}
+                    className="bg-white rounded-[14px] overflow-hidden border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row group"
+                  >
                     <div className="p-5 flex-1 flex flex-col justify-center">
                       <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
                         <span className="text-sm font-bold text-[#2E7D32] flex items-center gap-1.5">
                           <SlotIcon size={14} />
-                          {slot.time} {slot.duration ? <span className="text-[#6D4C41] font-medium text-xs ml-1">• {slot.duration}</span> : ""}
+                          {slot.time}{" "}
+                          {slot.duration ? (
+                            <span className="text-[#6D4C41] font-medium text-xs ml-1">
+                              • {slot.duration}
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </span>
                         {slot.slot_type && (
-                          <span className={`text-[10px] px-2.5 py-1 rounded-md border font-bold uppercase tracking-wider ${bgTypeClass}`}>
+                          <span
+                            className={`text-[10px] px-2.5 py-1 rounded-md border font-bold uppercase tracking-wider ${bgTypeClass}`}
+                          >
                             {slot.slot_type}
                           </span>
                         )}
                       </div>
-                    
-                      <h4 className="text-lg font-bold text-[#2C2C2C] mb-1.5 font-['Playfair_Display'] leading-tight">{slot.name}</h4>
+
+                      <h4 className="text-lg font-bold text-[#2C2C2C] mb-1.5 font-['Playfair_Display'] leading-tight">
+                        {slot.name}
+                      </h4>
                       {slot.neighborhood && (
                         <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
-                          <MapPin size={12} className="text-[#6D4C41]"/> {slot.neighborhood}
+                          <MapPin size={12} className="text-[#6D4C41]" />{" "}
+                          {slot.neighborhood}
                         </p>
                       )}
-                      
+
                       {slot.insight && (
                         <p className="text-sm text-[#4b5563] leading-relaxed flex-1">
                           {slot.insight}
@@ -309,7 +361,8 @@ export default function Itinerary({ trip }) {
                       {slot.cost > 0 && (
                         <div className="mt-4 pt-3 border-t border-[#E5E7EB] flex items-center">
                           <span className="text-xs font-bold text-[#2E7D32] bg-[#2E7D32]/5 px-2 py-1 rounded border border-[#2E7D32]/10">
-                            Est. Cost: {itinerary.currency || "USD"} {slot.cost.toFixed(2)}
+                            Est. Cost: {itinerary.currency || "USD"}{" "}
+                            {slot.cost.toFixed(2)}
                           </span>
                         </div>
                       )}
@@ -351,12 +404,16 @@ export default function Itinerary({ trip }) {
                       <div className="bg-gray-50/50 border border-gray-100 p-4 rounded-xl hover:shadow-md hover:bg-white transition-all">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${getIconColor(act.type)}`}>
+                            <div
+                              className={`p-2 rounded-lg ${getIconColor(act.type)}`}
+                            >
                               <IconComp size={18} />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-gray-800 truncate">{act.title}</h4>
+                                <h4 className="font-bold text-gray-800 truncate">
+                                  {act.title}
+                                </h4>
                                 {act.isAI && (
                                   <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[8px] h-4 flex items-center gap-0.5 px-1 font-bold">
                                     <Sparkles size={6} /> AI PICK
@@ -369,7 +426,11 @@ export default function Itinerary({ trip }) {
                             {act.time}
                           </span>
                         </div>
-                        {act.desc && <p className="text-sm text-gray-500 pl-11">{act.desc}</p>}
+                        {act.desc && (
+                          <p className="text-sm text-gray-500 pl-11">
+                            {act.desc}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -382,4 +443,3 @@ export default function Itinerary({ trip }) {
     </div>
   );
 }
-

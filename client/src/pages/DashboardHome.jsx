@@ -21,8 +21,16 @@ import { generateTripDraft, getUserTrips } from "../api/trips";
 
 const getCurrentLocationDraft = () =>
   new Promise((resolve) => {
+    const fallbackMumbai = {
+      city: "Mumbai",
+      country: "India",
+      displayName: "Mumbai, Maharashtra, India",
+      lat: 19.0760,
+      lng: 72.8777,
+    };
+
     if (!navigator.geolocation) {
-      resolve(null);
+      resolve(fallbackMumbai);
       return;
     }
 
@@ -51,16 +59,10 @@ const getCurrentLocationDraft = () =>
             lng: coords.longitude,
           });
         } catch {
-          resolve({
-            city: "",
-            country: "",
-            displayName: `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
-            lat: coords.latitude,
-            lng: coords.longitude,
-          });
+          resolve(fallbackMumbai);
         }
       },
-      () => resolve(null),
+      () => resolve(fallbackMumbai),
       {
         enableHighAccuracy: false,
         timeout: 8000,

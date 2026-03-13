@@ -115,24 +115,37 @@ const normalizeTripDraft = (draft, prompt, currentLocation) => {
   const defaultEndDate = addDays(defaultStartDate, 4);
   const requestedDuration = Number(draft?.durationDays);
 
-  const startDate = formatDateOnly(draft?.startDate) || formatDateOnly(defaultStartDate);
+  const startDate =
+    formatDateOnly(draft?.startDate) || formatDateOnly(defaultStartDate);
   const parsedEndDate = formatDateOnly(draft?.endDate);
   const fallbackEndDate = formatDateOnly(
-    addDays(startDate, Number.isFinite(requestedDuration) && requestedDuration > 0 ? requestedDuration - 1 : 4),
+    addDays(
+      startDate,
+      Number.isFinite(requestedDuration) && requestedDuration > 0
+        ? requestedDuration - 1
+        : 4,
+    ),
   );
 
-  let endDate = parsedEndDate || fallbackEndDate || formatDateOnly(defaultEndDate);
+  let endDate =
+    parsedEndDate || fallbackEndDate || formatDateOnly(defaultEndDate);
   if (new Date(endDate) < new Date(startDate)) {
     endDate = fallbackEndDate || formatDateOnly(defaultEndDate);
   }
 
   const budgetValue = Number(draft?.budget);
-  const budget = Number.isFinite(budgetValue) && budgetValue > 0 ? Math.round(budgetValue) : 1500;
+  const budget =
+    Number.isFinite(budgetValue) && budgetValue > 0
+      ? Math.round(budgetValue)
+      : 1500;
 
   const origin =
     coerceCoordinates(normalizeLocation(currentLocation)) ||
     normalizeLocation(
-      draft?.origin || draft?.source || draft?.currentLocation || draft?.startLocation,
+      draft?.origin ||
+        draft?.source ||
+        draft?.currentLocation ||
+        draft?.startLocation,
     );
   const mainDestination = normalizeLocation(
     draft?.mainDestination ||
@@ -143,12 +156,13 @@ const normalizeTripDraft = (draft, prompt, currentLocation) => {
   const endpointKeys = new Set(
     [getLocationKey(origin), getLocationKey(mainDestination)].filter(Boolean),
   );
-  const destinations = (Array.isArray(draft?.destinations)
-    ? draft.destinations.map(normalizeLocation).filter(Boolean)
-    : Array.isArray(draft?.stops)
-      ? draft.stops.map(normalizeLocation).filter(Boolean)
-      : [])
-    .filter((location) => !endpointKeys.has(getLocationKey(location)));
+  const destinations = (
+    Array.isArray(draft?.destinations)
+      ? draft.destinations.map(normalizeLocation).filter(Boolean)
+      : Array.isArray(draft?.stops)
+        ? draft.stops.map(normalizeLocation).filter(Boolean)
+        : []
+  ).filter((location) => !endpointKeys.has(getLocationKey(location)));
 
   return {
     name:
@@ -165,7 +179,8 @@ const normalizeTripDraft = (draft, prompt, currentLocation) => {
 };
 
 const generateTripDraft = asyncHandler(async (req, res) => {
-  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  const prompt =
+    typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
   const currentLocation = req.body?.currentLocation;
 
   if (!prompt) {
@@ -330,8 +345,11 @@ const createTrip = asyncHandler(async (req, res) => {
             console.log(trip._id);
             const t = await Trip.findById(trip._id);
             if (t) {
-              const itineraryPayload =
-                result?.days ? result : result?.data?.days ? result.data : null;
+              const itineraryPayload = result?.days
+                ? result
+                : result?.data?.days
+                  ? result.data
+                  : null;
 
               if (itineraryPayload?.days) {
                 t.itinerary = itineraryPayload;
@@ -352,8 +370,15 @@ const createTrip = asyncHandler(async (req, res) => {
                     incomingAgents[cat] = { status: "success", data: node };
                     return;
                   }
-                  if (node?.data && Array.isArray(node.data) && node.data.length > 0) {
-                    incomingAgents[cat] = { status: "success", data: node.data };
+                  if (
+                    node?.data &&
+                    Array.isArray(node.data) &&
+                    node.data.length > 0
+                  ) {
+                    incomingAgents[cat] = {
+                      status: "success",
+                      data: node.data,
+                    };
                   }
                 });
 
@@ -508,6 +533,14 @@ const getTripById = asyncHandler(async (req, res) => {
   for (const [key, colName] of Object.entries(collectionMap)) {
     try {
       const collection = mongoose.connection.db.collection(colName);
+
+      // 1. Fetch valid schema docs natively
+      const validDocs = await collection.find({ trip_id: tripId }).toArray();
+      if (validDocs.length > 0) {
+        externalAgents[key].push(...validDocs);
+      }
+
+      // 2. Fetch all other docs to scavenge malformed strings
       const docs = await collection.find({}).toArray();
 
       docs.forEach((doc) => {
@@ -1106,6 +1139,28 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
       ),
     );
 });
+const getTripActivities = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) {
+    throw new ApiError(404, "Trip not found or you are not a member");
+  }
+  const trip_id=trip.itinerary.trip_id;
+  const collection_activities = mongoose.connection.db.collection("activities");
+  const collection_accomodations = mongoose.connection.db.collection("accomodations");
+  const collection_dining = mongoose.connection.db.collection("dining");
+  const collection_transport = mongoose.connection.db.collection("transportation");
+
+  const activities = await collection_activities.find({ trip_id: trip_id }).toArray();
+  const accomodations = await collection_accomodations.find({ trip_id: trip_id }).toArray();
+  const dining = await collection_dining.find({ trip_id: trip_id }).toArray();
+  const transport = await collection_transport.find({ trip_id: trip_id }).toArray();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {activities, accomodations, dining, transport}, "Activities fetched successfully"));
+});
 
 export {
   generateTripDraft,
@@ -1122,6 +1177,7 @@ export {
   getTripMessages,
   leaveTrip,
   deleteTrip,
+  getTripActivities,
   updateTripFromN8n,
   getAgentPlaygroundData,
 };

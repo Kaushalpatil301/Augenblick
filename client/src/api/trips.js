@@ -21,3 +21,4 @@ export const updateTripRoute = (tripId, data) =>
 export const getTripMessages = (tripId) => api.get(`/trips/${tripId}/messages`);
 export const leaveTrip = (tripId) => api.post(`trips/${tripId}/leave`);
 export const deleteTrip = (tripId) => api.delete(`trips/${tripId}`);
+export const getTripActivities = (tripId) => api.get(`trips/${tripId}/activities`);
