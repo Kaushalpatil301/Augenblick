@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  generateTripDraft,
   createTrip,
   getUserTrips,
   getTripById,
@@ -20,6 +21,7 @@ const router = Router();
 
 router.use(verifyJWT);
 
+router.post("/draft", generateTripDraft);
 router.post("/", createTrip);
 router.get("/", getUserTrips);
 router.get("/invitations", getTripInvitations);

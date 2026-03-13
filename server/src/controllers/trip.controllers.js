@@ -4,6 +4,242 @@ import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Message from "../models/Message.js";
 import mongoose from "mongoose";
+
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+
+const formatDateOnly = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString().slice(0, 10);
+};
+
+const addDays = (value, days) => {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
+const normalizeLocation = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  if (typeof location === "string") {
+    const label = location.trim();
+    return label ? { city: label, country: "", displayName: label } : null;
+  }
+
+  const city = typeof location.city === "string" ? location.city.trim() : "";
+  const country =
+    typeof location.country === "string" ? location.country.trim() : "";
+  const displayName =
+    typeof location.displayName === "string" && location.displayName.trim()
+      ? location.displayName.trim()
+      : [city, country].filter(Boolean).join(", ");
+
+  if (!city && !country && !displayName) {
+    return null;
+  }
+
+  return {
+    city,
+    country,
+    displayName,
+  };
+};
+
+const getLocationKey = (location) => {
+  if (!location) {
+    return "";
+  }
+
+  return [location.city, location.country, location.displayName]
+    .filter(Boolean)
+    .join("|")
+    .trim()
+    .toLowerCase();
+};
+
+const coerceCoordinates = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  return {
+    ...location,
+    lat: Number.isFinite(lat) ? lat : undefined,
+    lng: Number.isFinite(lng) ? lng : undefined,
+  };
+};
+
+const parseJsonObject = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    const match = value.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+};
+
+const extractGeminiText = (payload) => {
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) {
+    return "";
+  }
+
+  return parts
+    .map((part) => (typeof part?.text === "string" ? part.text : ""))
+    .join("")
+    .trim();
+};
+
+const normalizeTripDraft = (draft, prompt, currentLocation) => {
+  const today = new Date();
+  const defaultStartDate = addDays(today, 14);
+  const defaultEndDate = addDays(defaultStartDate, 4);
+  const requestedDuration = Number(draft?.durationDays);
+
+  const startDate = formatDateOnly(draft?.startDate) || formatDateOnly(defaultStartDate);
+  const parsedEndDate = formatDateOnly(draft?.endDate);
+  const fallbackEndDate = formatDateOnly(
+    addDays(startDate, Number.isFinite(requestedDuration) && requestedDuration > 0 ? requestedDuration - 1 : 4),
+  );
+
+  let endDate = parsedEndDate || fallbackEndDate || formatDateOnly(defaultEndDate);
+  if (new Date(endDate) < new Date(startDate)) {
+    endDate = fallbackEndDate || formatDateOnly(defaultEndDate);
+  }
+
+  const budgetValue = Number(draft?.budget);
+  const budget = Number.isFinite(budgetValue) && budgetValue > 0 ? Math.round(budgetValue) : 1500;
+
+  const origin =
+    coerceCoordinates(normalizeLocation(currentLocation)) ||
+    normalizeLocation(
+      draft?.origin || draft?.source || draft?.currentLocation || draft?.startLocation,
+    );
+  const mainDestination = normalizeLocation(
+    draft?.mainDestination ||
+      draft?.finalDestination ||
+      draft?.destination ||
+      draft?.endLocation,
+  );
+  const endpointKeys = new Set(
+    [getLocationKey(origin), getLocationKey(mainDestination)].filter(Boolean),
+  );
+  const destinations = (Array.isArray(draft?.destinations)
+    ? draft.destinations.map(normalizeLocation).filter(Boolean)
+    : Array.isArray(draft?.stops)
+      ? draft.stops.map(normalizeLocation).filter(Boolean)
+      : [])
+    .filter((location) => !endpointKeys.has(getLocationKey(location)));
+
+  return {
+    name:
+      (typeof draft?.name === "string" && draft.name.trim()) ||
+      prompt.slice(0, 60) ||
+      "AI Planned Trip",
+    startDate,
+    endDate,
+    budget,
+    origin,
+    mainDestination,
+    destinations,
+  };
+};
+
+const generateTripDraft = asyncHandler(async (req, res) => {
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  const currentLocation = req.body?.currentLocation;
+
+  if (!prompt) {
+    throw new ApiError(400, "Prompt is required");
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new ApiError(500, "GEMINI_API_KEY is not configured on the server");
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const instruction = [
+    "Convert the user's travel request into a trip creation draft.",
+    `Today is ${today}.`,
+    "Return only valid JSON and no markdown.",
+    "Schema:",
+    '{"name":"string","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","budget":1200,"origin":{"city":"string","country":"string","displayName":"string"},"mainDestination":{"city":"string","country":"string","displayName":"string"},"destinations":[{"city":"string","country":"string","displayName":"string"}],"durationDays":5}',
+    "Rules:",
+    currentLocation
+      ? `- origin is already fixed to the user's current location: ${JSON.stringify(currentLocation)}. Reuse it and do not infer another source from the prompt.`
+      : "- origin must be the current place or starting/source location mentioned in the prompt.",
+    "- mainDestination must be the final destination or ending place mentioned in the prompt.",
+    "- Do not put origin or mainDestination inside destinations.",
+    "- If the user does not specify dates, choose realistic future dates.",
+    "- If the user does not specify a budget, infer a sensible USD budget.",
+    "- Keep origin null if it is not mentioned.",
+    "- Use mainDestination for the final or primary destination.",
+    "- Put intermediate stops only in destinations.",
+  ].join("\n");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `${instruction}\n\nUser prompt: ${prompt}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new ApiError(502, `Gemini request failed: ${errorText}`);
+  }
+
+  const payload = await response.json();
+  const parsedDraft = parseJsonObject(extractGeminiText(payload));
+  if (!parsedDraft) {
+    throw new ApiError(502, "Gemini returned an invalid trip draft");
+  }
+
+  const draft = normalizeTripDraft(parsedDraft, prompt, currentLocation);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, draft, "Trip draft generated successfully"));
+});
+
 const createTrip = asyncHandler(async (req, res) => {
   const {
     name,
@@ -785,6 +1021,7 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
 });
 
 export {
+  generateTripDraft,
   createTrip,
   getUserTrips,
   getTripById,

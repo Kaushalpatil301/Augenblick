@@ -32,6 +32,13 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+const DEFAULT_FORM = {
+  name: "",
+  startDate: "",
+  endDate: "",
+  budget: "",
+};
+
 // Fix default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -118,17 +125,21 @@ const MODE_ORIGIN = "origin";
 const MODE_DEST = "destination";
 const MODE_STOP = "stop";
 
-export default function CreateTrip({ onTripCreated }) {
-  const [open, setOpen] = useState(false);
+const hasCoordinates = (place) =>
+  Number.isFinite(place?.lat) && Number.isFinite(place?.lng);
+
+export default function CreateTrip({
+  onTripCreated,
+  open: controlledOpen,
+  onOpenChange,
+  initialDraft,
+  hideTrigger = false,
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [step, setStep] = useState(1); // 1 = basic info, 2 = map picker
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    startDate: "",
-    endDate: "",
-    budget: "",
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
 
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
@@ -141,6 +152,14 @@ export default function CreateTrip({ onTripCreated }) {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimeout = useRef(null);
   const mapRef = useRef(null);
+  const open = controlledOpen ?? internalOpen;
+
+  const setOpen = (value) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(value);
+    }
+    onOpenChange?.(value);
+  };
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -148,7 +167,7 @@ export default function CreateTrip({ onTripCreated }) {
 
   const resetAll = () => {
     setStep(1);
-    setForm({ name: "", startDate: "", endDate: "", budget: "" });
+    setForm(DEFAULT_FORM);
     setOrigin(null);
     setDestination(null);
     setStops([]);
@@ -156,6 +175,83 @@ export default function CreateTrip({ onTripCreated }) {
     setSearchQuery("");
     setSearchResults([]);
   };
+
+  const resolveDraftPlace = async (place) => {
+    if (!place) {
+      return null;
+    }
+
+    if (hasCoordinates(place)) {
+      return place;
+    }
+
+    const label =
+      place.displayName ||
+      [place.city, place.country].filter(Boolean).join(", ");
+    if (!label) {
+      return null;
+    }
+
+    try {
+      const results = await forwardGeocode(label);
+      const firstMatch = results?.[0];
+      if (!firstMatch) {
+        return place;
+      }
+
+      return {
+        city:
+          place.city || firstMatch.address?.city || firstMatch.name || label,
+        country: place.country || firstMatch.address?.country || "",
+        displayName: place.displayName || firstMatch.display_name || label,
+        lat: Number(firstMatch.lat),
+        lng: Number(firstMatch.lon),
+      };
+    } catch {
+      return place;
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !initialDraft) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const applyDraft = async () => {
+      setStep(1);
+      setForm({
+        name: initialDraft.name || "",
+        startDate: initialDraft.startDate || "",
+        endDate: initialDraft.endDate || "",
+        budget:
+          initialDraft.budget === undefined || initialDraft.budget === null
+            ? ""
+            : String(initialDraft.budget),
+      });
+
+      const [nextOrigin, nextDestination, nextStops] = await Promise.all([
+        resolveDraftPlace(initialDraft.origin),
+        resolveDraftPlace(initialDraft.mainDestination),
+        Promise.all((initialDraft.destinations || []).map(resolveDraftPlace)),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      setOrigin(nextOrigin);
+      setDestination(nextDestination);
+      setStops(nextStops.filter(Boolean));
+    };
+
+    applyDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialDraft, open]);
 
   const handleMapClick = async (lat, lng) => {
     setResolving(true);
@@ -253,14 +349,17 @@ export default function CreateTrip({ onTripCreated }) {
 
   // Build polyline from origin -> stops (in order) -> destination
   const routePoints = [];
-  if (origin) routePoints.push([origin.lat, origin.lng]);
-  stops.forEach((s) => routePoints.push([s.lat, s.lng]));
-  if (destination) routePoints.push([destination.lat, destination.lng]);
+  if (hasCoordinates(origin)) routePoints.push([origin.lat, origin.lng]);
+  stops.filter(hasCoordinates).forEach((s) => routePoints.push([s.lat, s.lng]));
+  if (hasCoordinates(destination))
+    routePoints.push([destination.lat, destination.lng]);
 
   const allFitPoints = [
-    ...(origin ? [[origin.lat, origin.lng]] : []),
-    ...(destination ? [[destination.lat, destination.lng]] : []),
-    ...stops.map((s) => [s.lat, s.lng]),
+    ...(hasCoordinates(origin) ? [[origin.lat, origin.lng]] : []),
+    ...(hasCoordinates(destination)
+      ? [[destination.lat, destination.lng]]
+      : []),
+    ...stops.filter(hasCoordinates).map((s) => [s.lat, s.lng]),
   ];
 
   const handleSubmit = async () => {
@@ -294,15 +393,17 @@ export default function CreateTrip({ onTripCreated }) {
         if (!val) resetAll();
       }}
     >
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <PlusCircle size={16} />
-          <span className="hidden sm:inline">Create Trip</span>
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <PlusCircle size={16} />
+            <span className="hidden sm:inline">Create Trip</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent
         className={
           step === 1
@@ -549,7 +650,7 @@ export default function CreateTrip({ onTripCreated }) {
                 {allFitPoints.length > 0 && <FitBounds points={allFitPoints} />}
 
                 {/* Origin marker */}
-                {origin && (
+                {origin && hasCoordinates(origin) && (
                   <Marker position={[origin.lat, origin.lng]} icon={originIcon}>
                     <Popup>
                       <strong className="text-green-700">Source:</strong>{" "}
@@ -559,7 +660,7 @@ export default function CreateTrip({ onTripCreated }) {
                 )}
 
                 {/* Destination marker */}
-                {destination && (
+                {destination && hasCoordinates(destination) && (
                   <Marker
                     position={[destination.lat, destination.lng]}
                     icon={destIcon}
@@ -572,7 +673,7 @@ export default function CreateTrip({ onTripCreated }) {
                 )}
 
                 {/* Stop markers */}
-                {stops.map((s, i) => (
+                {stops.filter(hasCoordinates).map((s, i) => (
                   <Marker key={i} position={[s.lat, s.lng]} icon={stopIcon}>
                     <Popup>
                       <strong className="text-blue-700">Stop {i + 1}:</strong>{" "}
