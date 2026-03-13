@@ -3,6 +3,7 @@ import {
   createTrip,
   getUserTrips,
   getTripById,
+  updateTripFromN8n,
   updateTripDetails,
   addDestination,
   removeDestination,
@@ -17,6 +18,9 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+
+// n8n callback must be public so workflow can push itinerary updates.
+router.post("/:tripId/n8n-callback", updateTripFromN8n);
 
 router.use(verifyJWT);
 

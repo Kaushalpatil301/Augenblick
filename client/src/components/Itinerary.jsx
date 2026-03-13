@@ -32,10 +32,12 @@ const formatTime = (date) => {
 
 export default function Itinerary({ trip }) {
   const itinerary = trip?.itinerary;
+  console.log(itinerary)
+  const hasRichItinerary = Array.isArray(itinerary?.days);
 
   // Convert trip data to timeline activities (original fallback logic)
   const fallbackActivities = useMemo(() => {
-    if (!trip || itinerary) return [];
+    if (!trip || hasRichItinerary) return [];
     const items = [];
 
     // 1. Add AI Suggestions (Picks)
@@ -143,7 +145,7 @@ export default function Itinerary({ trip }) {
       if (!a.isAI && b.isAI) return 1;
       return 0;
     });
-  }, [trip, itinerary]);
+  }, [trip, hasRichItinerary]);
 
   // Group activities by day for fallback
   const groupedFallbackActivities = useMemo(() => {
@@ -200,125 +202,124 @@ export default function Itinerary({ trip }) {
   }
 
   // ── Render Rich Itinerary (n8n Payload) ──────────────────────────────────
-  if (itinerary && itinerary.days) {
+  if (hasRichItinerary) {
     return (
-      <div className="space-y-8 p-4 bg-white rounded-xl">
-        <div className="border-b pb-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-            {itinerary.itinerary_title || "Your Custom Itinerary"}
+      <div className="space-y-8 p-2 sm:p-4 bg-[#F5F5F0] rounded-xl font-['Lato']">
+        <div className="border-b border-[#E5E7EB] pb-6 mb-6">
+          <h2 className="text-3xl font-bold text-[#2C2C2C] font-['Playfair_Display']">
+            {itinerary.location ? `Trip to ${itinerary.location}` : "Your Custom Itinerary"}
           </h2>
-          <div className="flex items-center gap-2 mt-2 text-gray-500 text-sm">
-            <MapPin size={16} />
-            <span>{itinerary.location}</span>
+          <div className="flex flex-wrap items-center gap-4 mt-3">
+            <div className="flex items-center gap-1.5 text-[#6D4C41] text-sm font-medium bg-white px-3 py-1.5 rounded-full border border-[#E5E7EB] shadow-sm">
+              <MapPin size={16} className="text-[#2E7D32]"/>
+              <span>{itinerary.duration} • {itinerary.nights_count} nights</span>
+            </div>
+            {itinerary.estimated_total_cost > 0 && (
+              <div className="flex items-center gap-1.5 text-[#2E7D32] text-sm font-bold bg-[#2E7D32]/10 px-3 py-1.5 rounded-full border border-[#2E7D32]/20 shadow-sm">
+                Estimated Cost: {itinerary.currency || "USD"} {itinerary.estimated_total_cost}
+              </div>
+            )}
           </div>
         </div>
 
-        {itinerary.days.map((day, dIdx) => (
-          <div key={dIdx} className="relative pl-8 border-l-2 border-dashed border-indigo-100 last:border-0 pb-10">
-            {/* Day Bubble */}
-            <div className="absolute -left-4 top-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">
-              {day.day}
-            </div>
-
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-gray-800">{day.theme}</h3>
-              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider mt-0.5">DAY {day.day}</p>
-            </div>
-
-            <div className="space-y-4">
-              {day.slots?.map((slot, sIdx) => (
-                <div key={sIdx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-indigo-600 flex items-center gap-1.5">
-                      <Clock size={14} />
-                      {slot.time}
-                    </span>
-                    {slot.transport && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-100 font-medium uppercase tracking-tight">
-                        {slot.transport}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <h4 className="text-base font-bold text-gray-800 mb-2">{slot.activity}</h4>
-                  
-                  {slot.pro_tip && (
-                    <div className="mt-3 flex gap-3 p-3 bg-white/60 rounded-xl border border-dashed border-amber-200">
-                      <Lightbulb size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-xs text-gray-600 italic leading-relaxed">
-                        <span className="font-bold text-amber-700 not-italic">Pro Tip: </span>
-                        {slot.pro_tip}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {day.dining && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  {day.dining.lunch && (
-                    <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Coffee size={14} className="text-orange-600" />
-                        <span className="text-xs font-bold text-orange-700 uppercase">Lunch</span>
-                      </div>
-                      <p className="text-sm text-gray-700 font-medium">{day.dining.lunch}</p>
-                    </div>
-                  )}
-                  {day.dining.dinner && (
-                    <div className="bg-violet-50/50 p-4 rounded-xl border border-violet-100">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Utensils size={14} className="text-violet-600" />
-                        <span className="text-xs font-bold text-violet-700 uppercase">Dinner</span>
-                      </div>
-                      <p className="text-sm text-gray-700 font-medium">{day.dining.dinner}</p>
-                    </div>
-                  )}
-                </div>
+        {itinerary.base_accommodation && (
+          <div className="mb-8 p-6 bg-white rounded-[14px] border border-[#E5E7EB] shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
+            <div className="flex flex-col justify-center flex-1">
+              <div className="flex items-center gap-2 mb-2 text-[#F4A261] font-bold text-xs tracking-wider uppercase">
+                <Hotel size={16} /> Base Accommodation
+              </div>
+              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] mb-2">{itinerary.base_accommodation.name}</h3>
+              {itinerary.base_accommodation.neighborhood && (
+                <p className="text-sm text-[#6D4C41] flex items-center gap-1.5 mb-4">
+                  <MapPin size={14}/> {itinerary.base_accommodation.neighborhood}
+                </p>
               )}
-            </div>
-          </div>
-        ))}
-
-        {itinerary.budget_summary && (
-          <div className="mt-8 p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
-              <Sparkles size={24} />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-green-600 uppercase tracking-widest">Budget Summary</p>
-              <p className="text-lg font-bold text-green-900">{itinerary.budget_summary}</p>
+              {itinerary.base_accommodation.cost_per_night > 0 && (
+                <p className="text-sm font-bold text-[#2E7D32] bg-[#2E7D32]/10 w-fit px-3 py-1 rounded-md">
+                  {itinerary.currency || "USD"} {itinerary.base_accommodation.cost_per_night} / night
+                </p>
+              )}
             </div>
           </div>
         )}
 
-        {/* AI Recommendations Sidebar/Section */}
-        <div className="mt-12 space-y-6 pt-12 border-t">
-          <div className="flex items-center gap-2">
-            <Sparkles size={24} className="text-indigo-600" />
-            <h3 className="text-xl font-bold text-gray-900">Expert Recommendations</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Object.entries(trip.agents || {}).map(([key, agent]) => {
-              if (!agent.data?.length) return null;
-              return (
-                <div key={key} className="p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100 flex flex-col gap-2">
-                  <h4 className="text-xs font-extrabold text-indigo-700 uppercase tracking-tighter flex items-center gap-2">
-                    {key.replace('accommodation', 'Hotels').replace('activities', 'Must Sees')}
-                  </h4>
-                  {agent.data.slice(0, 2).map((item, i) => (
-                    <div key={i} className="text-sm font-bold text-indigo-900">
-                      • {item.name || item.hotel_name || item.restaurantName}
-                      <p className="text-[10px] font-normal text-indigo-600 leading-tight mt-0.5 line-clamp-2 italic">
-                        {item.insight || item.insider_tip || item.description || item.neighborhood}
-                      </p>
+        {itinerary.days.map((day, dIdx) => (
+          <div key={dIdx} className="relative pl-8 border-l-2 border-dashed border-[#2E7D32]/30 last:border-0 pb-12">
+            {/* Day Bubble */}
+            <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold shadow-md">
+              {day.day_number}
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold text-[#2C2C2C] font-['Playfair_Display'] leading-tight">{day.day_label}</h3>
+              {day.neighborhood_focus && (
+                <p className="text-sm font-semibold text-[#6D4C41] mt-1.5 flex items-center gap-1.5">
+                  <MapPin size={14} className="text-[#F4A261]"/> Daily Focus: {day.neighborhood_focus}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-5">
+              {day.slots?.map((slot, sIdx) => {
+                let SlotIcon = Clock;
+                let bgTypeClass = "bg-[#F4A261]/10 text-[#F4A261] border-[#F4A261]/20";
+                
+                if (slot.slot_type === "dining") {
+                  SlotIcon = Utensils;
+                  bgTypeClass = "bg-[#F4A261]/10 text-[#E67E22] border-[#F4A261]/20";
+                } else if (slot.slot_type === "activity") {
+                  SlotIcon = Camera;
+                  bgTypeClass = "bg-blue-50 text-blue-600 border-blue-200";
+                } else if (slot.slot_type === "transport") {
+                  SlotIcon = Plane;
+                  bgTypeClass = "bg-teal-50 text-teal-600 border-teal-200";
+                } else if (slot.slot_type === "check-in" || slot.slot_type === "check-out") {
+                  SlotIcon = Hotel;
+                  bgTypeClass = "bg-purple-50 text-purple-600 border-purple-200";
+                }
+
+                return (
+                  <div key={sIdx} className="bg-white rounded-[14px] overflow-hidden border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row group">
+                    <div className="p-5 flex-1 flex flex-col justify-center">
+                      <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
+                        <span className="text-sm font-bold text-[#2E7D32] flex items-center gap-1.5">
+                          <SlotIcon size={14} />
+                          {slot.time} {slot.duration ? <span className="text-[#6D4C41] font-medium text-xs ml-1">• {slot.duration}</span> : ""}
+                        </span>
+                        {slot.slot_type && (
+                          <span className={`text-[10px] px-2.5 py-1 rounded-md border font-bold uppercase tracking-wider ${bgTypeClass}`}>
+                            {slot.slot_type}
+                          </span>
+                        )}
+                      </div>
+                    
+                      <h4 className="text-lg font-bold text-[#2C2C2C] mb-1.5 font-['Playfair_Display'] leading-tight">{slot.name}</h4>
+                      {slot.neighborhood && (
+                        <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
+                          <MapPin size={12} className="text-[#6D4C41]"/> {slot.neighborhood}
+                        </p>
+                      )}
+                      
+                      {slot.insight && (
+                        <p className="text-sm text-[#4b5563] leading-relaxed flex-1">
+                          {slot.insight}
+                        </p>
+                      )}
+
+                      {slot.cost > 0 && (
+                        <div className="mt-4 pt-3 border-t border-[#E5E7EB] flex items-center">
+                          <span className="text-xs font-bold text-[#2E7D32] bg-[#2E7D32]/5 px-2 py-1 rounded border border-[#2E7D32]/10">
+                            Est. Cost: {itinerary.currency || "USD"} {slot.cost.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
     );
   }

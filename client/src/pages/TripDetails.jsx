@@ -218,7 +218,6 @@ export default function TripDetails() {
       try {
         const res = await getTripById(tripId);
         const updated = res.data.data;
-
         // Always update the trip to show partial results as they come in
         setTrip(updated);
 
@@ -229,7 +228,7 @@ export default function TripDetails() {
           }
         }
       } catch {}
-    }, 20000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [trip?.itineraryStatus, tripId]);
 
@@ -1280,6 +1279,7 @@ export default function TripDetails() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3 p-6">
+                {console.log(trip)}
                 {trip.accommodations.length === 0 ? (
                   <p className="text-sm text-[#6D4C41] italic font-['Lato']">
                     No accommodations added yet

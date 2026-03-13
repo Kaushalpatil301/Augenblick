@@ -266,13 +266,14 @@ export default function CreateTrip({ onTripCreated }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await createTrip({
+      const res=await createTrip({
         ...form,
         budget: Number(form.budget),
         origin: origin || undefined,
         mainDestination: destination || undefined,
         destinations: stops,
       });
+      console.log("Trip Created:", res.data);
       setOpen(false);
       resetAll();
       onTripCreated?.();

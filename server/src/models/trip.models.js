@@ -102,6 +102,15 @@ const tripSchema = new Schema(
         ref: "User",
       },
     ],
+    itineraryStatus: {
+      type: String,
+      enum: ["none", "pending", "done", "error"],
+      default: "none",
+    },
+    itinerary: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["Planning", "Active", "Completed"],

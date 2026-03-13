@@ -32,16 +32,18 @@ const createTrip = asyncHandler(async (req, res) => {
     origin: origin || undefined,
     mainDestination: mainDestination || undefined,
     destinations: Array.isArray(destinations) ? destinations : [],
+    itineraryStatus: "pending",
+    itinerary: null,
     createdBy: userId,
     members: [userId],
   });
-    // ── Fire n8n webhook (fire-and-forget) ──────────────────────────────────
+  // ── Fire n8n webhook (fire-and-forget) ──────────────────────────────────
   try {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const durationDays = Math.max(
       1,
-      Math.round((end - start) / (1000 * 60 * 60 * 24))
+      Math.round((end - start) / (1000 * 60 * 60 * 24)),
     );
     const destinationName =
       mainDestination?.city ||
@@ -49,7 +51,8 @@ const createTrip = asyncHandler(async (req, res) => {
       destinations?.[0]?.city ||
       "Unknown";
 
-    const query = `${durationDays} days in ${destinationName}. Trip: "${name}". ` +
+    const query =
+      `${durationDays} days in ${destinationName}. Trip: "${name}". ` +
       `Dates: ${startDate} to ${endDate}. ` +
       (origin?.city ? `Travelling from ${origin.city}. ` : "") +
       (destinations?.length > 0
@@ -78,12 +81,53 @@ const createTrip = asyncHandler(async (req, res) => {
       .then(async (r) => {
         if (r.ok) {
           const result = await r.json();
+          console.log("hello", result);
           // If n8n returns the itinerary immediately in the response
-          if (result && (result.days || result.activities)) {
+          if (
+            result &&
+            (result.days ||
+              result.activities ||
+              result.accommodation ||
+              result.dining ||
+              result.transport)
+          ) {
+            console.log(trip._id);
             const t = await Trip.findById(trip._id);
             if (t) {
-              t.itinerary = result;
-              t.itineraryStatus = "done";
+              const itineraryPayload =
+                result?.days ? result : result?.data?.days ? result.data : null;
+
+              if (itineraryPayload?.days) {
+                t.itinerary = itineraryPayload;
+                t.markModified("itinerary");
+                t.itineraryStatus = "done";
+              } else {
+                const categories = [
+                  "activities",
+                  "accommodation",
+                  "dining",
+                  "transport",
+                ];
+                const incomingAgents = {};
+
+                categories.forEach((cat) => {
+                  const node = result?.[cat] ?? result?.data?.[cat];
+                  if (Array.isArray(node) && node.length > 0) {
+                    incomingAgents[cat] = { status: "success", data: node };
+                    return;
+                  }
+                  if (node?.data && Array.isArray(node.data) && node.data.length > 0) {
+                    incomingAgents[cat] = { status: "success", data: node.data };
+                  }
+                });
+
+                if (Object.keys(incomingAgents).length > 0) {
+                  t.agents = { ...(t.agents || {}), ...incomingAgents };
+                  t.markModified("agents");
+                  t.itineraryStatus = "done";
+                }
+              }
+
               await t.save();
               console.log("[n8n] Captured immediate itinerary from response");
             }
@@ -93,13 +137,13 @@ const createTrip = asyncHandler(async (req, res) => {
       .catch((err) =>
         console.error(
           "[n8n webhook] Failed to fire travel-plan webhook:",
-          err.message
-        )
+          err.message,
+        ),
       );
   } catch (webhookErr) {
     console.error(
       "[n8n webhook] Error preparing webhook payload:",
-      webhookErr.message
+      webhookErr.message,
     );
   }
   // ────────────────────────────────────────────────────────────────────────
@@ -108,9 +152,6 @@ const createTrip = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(201, trip, "Trip created successfully"));
 });
-
-
-
 
 const getUserTrips = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -136,12 +177,15 @@ const repairTripAgentsData = (trip, rawDoc) => {
 
   Object.keys(rawDoc).forEach((key) => {
     // Look for keys that start with JSON or contain $set
-    if (key.trim().startsWith("{") && (key.includes("$set") || key.includes("agents."))) {
+    if (
+      key.trim().startsWith("{") &&
+      (key.includes("$set") || key.includes("agents."))
+    ) {
       try {
         // Clean key if it has spaces or escaped chars (common with n8n/mongo shell issues)
         const cleanKey = key.replace(/\\"/g, '"').trim();
         const parsed = JSON.parse(cleanKey);
-        
+
         // n8n often puts the whole update command as a key
         const setData = parsed["$set"] || parsed;
 
@@ -151,7 +195,11 @@ const repairTripAgentsData = (trip, rawDoc) => {
             let category = null;
             if (innerKey.startsWith("agents.")) {
               category = innerKey.split(".")[1];
-            } else if (["activities", "accommodation", "dining", "transport"].includes(innerKey)) {
+            } else if (
+              ["activities", "accommodation", "dining", "transport"].includes(
+                innerKey,
+              )
+            ) {
               category = innerKey;
             }
 
@@ -160,7 +208,8 @@ const repairTripAgentsData = (trip, rawDoc) => {
               const incoming = setData[innerKey];
               repairedAgents[category] = {
                 status: "success",
-                data: incoming?.data || (Array.isArray(incoming) ? incoming : [])
+                data:
+                  incoming?.data || (Array.isArray(incoming) ? incoming : []),
               };
               needsRepair = true;
             }
@@ -198,26 +247,26 @@ const getTripById = asyncHandler(async (req, res) => {
   // ── REPAIR DATA (LOCAL & EXTERNAL COLLECTIONS) ───────────────────────
   // We MUST fetch the raw document using the native driver because Mongoose
   // strips out fields (like the shredded keys) that aren't in the schema.
-  const rawTrip = await mongoose.connection.db.collection("trips").findOne({ 
-    _id: new mongoose.Types.ObjectId(tripId) 
+  const rawTrip = await mongoose.connection.db.collection("trips").findOne({
+    _id: new mongoose.Types.ObjectId(tripId),
   });
 
   // 1. Fix malformed keys in the trip document itself
   const fixed = repairTripAgentsData(trip, rawTrip);
-  
+
   // 2. Scavenge from separate n8n collections
   const externalAgents = {
     activities: [],
     accommodation: [],
     dining: [],
-    transport: []
+    transport: [],
   };
 
   const collectionMap = {
     activities: "activities",
     accommodation: "accommodations",
     dining: "dining",
-    transport: "transportation"
+    transport: "transportation",
   };
 
   for (const [key, colName] of Object.entries(collectionMap)) {
@@ -225,16 +274,16 @@ const getTripById = asyncHandler(async (req, res) => {
       const collection = mongoose.connection.db.collection(colName);
       const docs = await collection.find({}).toArray();
 
-      docs.forEach(doc => {
+      docs.forEach((doc) => {
         // Find if this doc belongs to our trip (tripId is inside a broken key)
-        const brokenKey = Object.keys(doc).find(k => k.includes(tripId));
+        const brokenKey = Object.keys(doc).find((k) => k.includes(tripId));
         if (brokenKey) {
           try {
             const cleanKey = brokenKey.replace(/\\"/g, '"').trim();
             const parsed = JSON.parse(cleanKey);
             const setData = parsed["$set"] || parsed;
-            
-            Object.keys(setData).forEach(innerKey => {
+
+            Object.keys(setData).forEach((innerKey) => {
               // Extract the data array
               let val = setData[innerKey];
               if (val && val.data && Array.isArray(val.data)) {
@@ -251,17 +300,24 @@ const getTripById = asyncHandler(async (req, res) => {
 
   // Merge external findings into the trip object for the UI
   let merged = false;
-  Object.keys(externalAgents).forEach(cat => {
+  Object.keys(externalAgents).forEach((cat) => {
     if (externalAgents[cat].length > 0) {
       if (!trip.agents) trip.agents = {};
       if (!trip.agents[cat]) trip.agents[cat] = { status: "success", data: [] };
-      
-      const existingNames = new Set(trip.agents[cat].data.map(d => 
-        (d.name || d.hotel_name || d.restaurantName || "").toLowerCase()
-      ));
 
-      externalAgents[cat].forEach(item => {
-        const name = (item.name || item.hotel_name || item.restaurantName || "").toLowerCase();
+      const existingNames = new Set(
+        trip.agents[cat].data.map((d) =>
+          (d.name || d.hotel_name || d.restaurantName || "").toLowerCase(),
+        ),
+      );
+
+      externalAgents[cat].forEach((item) => {
+        const name = (
+          item.name ||
+          item.hotel_name ||
+          item.restaurantName ||
+          ""
+        ).toLowerCase();
         if (name && !existingNames.has(name)) {
           trip.agents[cat].data.push(item);
           merged = true;
@@ -273,7 +329,10 @@ const getTripById = asyncHandler(async (req, res) => {
   if (fixed || merged) {
     trip.markModified("agents");
     await trip.save();
-    console.log("[Repair] Healed agent data from native driver for trip:", tripId);
+    console.log(
+      "[Repair] Healed agent data from native driver for trip:",
+      tripId,
+    );
   }
   // ──────────────────────────────────────────────────────────────────────
 
@@ -318,7 +377,6 @@ const updateTripDetails = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, trip, `${type} added successfully`));
 });
-
 
 const addDestination = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
@@ -509,7 +567,7 @@ const deleteTrip = asyncHandler(async (req, res) => {
 const updateTripFromN8n = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
   const rawData = { ...req.query, ...req.body };
-  
+
   const trip = await Trip.findById(tripId);
   if (!trip) throw new ApiError(404, "Trip not found");
 
@@ -522,14 +580,15 @@ const updateTripFromN8n = asyncHandler(async (req, res) => {
 
   // 1. Join keys WITHOUT spaces to reconstruct split JSON fragments
   const keys = Object.keys(rawData);
-  const nullCount = keys.filter(k => rawData[k] === null).length;
-  
-  if (nullCount > 5 || keys.some(k => k.includes("agents."))) {
+  const nullCount = keys.filter((k) => rawData[k] === null).length;
+
+  if (nullCount > 5 || keys.some((k) => k.includes("agents."))) {
     // Join with nothing so split property names/values reconnect
-    fullPayloadString = keys.join("")
+    fullPayloadString = keys
+      .join("")
       .replace(/\\n/g, "")
       .replace(/\\"/g, '"')
-      .replace(/""/g, '"'); 
+      .replace(/""/g, '"');
   } else {
     fullPayloadString = JSON.stringify(rawData);
   }
@@ -537,18 +596,21 @@ const updateTripFromN8n = asyncHandler(async (req, res) => {
   // Define categories to look for
   const categories = ["activities", "accommodation", "dining", "transport"];
 
-  categories.forEach(cat => {
+  categories.forEach((cat) => {
     try {
       // Look for the category and the data array following it
       // This regex handles escaped quotes and newlines common in these broken payloads
-      const regex = new RegExp(`["'\\\\]*${cat}["'\\\\]*[:\\s]*{[^}]*["'\\\\]*data["'\\\\]*\\s*:\\s*(\\[[\\s\\S]*?\\])`, "i");
+      const regex = new RegExp(
+        `["'\\\\]*${cat}["'\\\\]*[:\\s]*{[^}]*["'\\\\]*data["'\\\\]*\\s*:\\s*(\\[[\\s\\S]*?\\])`,
+        "i",
+      );
       const match = fullPayloadString.match(regex);
-      
+
       if (match && match[1]) {
         let cleanJson = match[1]
           .replace(/\\n/g, "") // remove newlines
           .replace(/\\"/g, '"') // unescape quotes
-          .replace(/""/g, '"')  // fix double quotes
+          .replace(/""/g, '"') // fix double quotes
           .trim();
 
         // Ensure it ends correctly
@@ -571,7 +633,7 @@ const updateTripFromN8n = asyncHandler(async (req, res) => {
       if (obj.category && obj.data) {
         agentsFound[obj.category] = { status: "success", data: obj.data };
       }
-      Object.keys(obj).forEach(key => {
+      Object.keys(obj).forEach((key) => {
         if (obj[key] && typeof obj[key] === "object") scan(obj[key]);
       });
     };
@@ -591,7 +653,10 @@ const updateTripFromN8n = asyncHandler(async (req, res) => {
     trip.agents = { ...trip.agents, ...agentsFound };
     trip.markModified("agents");
     trip.itineraryStatus = "done"; // Mark as done so UI stops loading
-    console.log("[n8n Callback] Successfully merged agents:", Object.keys(agentsFound));
+    console.log(
+      "[n8n Callback] Successfully merged agents:",
+      Object.keys(agentsFound),
+    );
   }
 
   await trip.save();
@@ -608,7 +673,7 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
     activities: [],
     accommodation: [],
     dining: [],
-    transport: []
+    transport: [],
   };
 
   const normalizeText = (text) =>
@@ -661,7 +726,10 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
 
         Object.entries(extraFieldMap).forEach(([src, dst]) => {
           const extraRe = new RegExp(`"${src}"\\s*:\\s*"([^"]+)"`, "g");
-          const slice = payload.slice(match.index, Math.min(payload.length, match.index + 1200));
+          const slice = payload.slice(
+            match.index,
+            Math.min(payload.length, match.index + 1200),
+          );
           const extraMatch = extraRe.exec(slice);
           if (extraMatch?.[1]) obj[dst] = extraMatch[1].trim();
         });
@@ -673,12 +741,18 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
     if (key === "activities") {
       pullPairs("name", { neighborhood: "neighborhood", pic_url: "pic_url" });
     } else if (key === "accommodation") {
-      pullPairs("hotel_name", { neighborhood: "neighborhood", pic_url: "pic_url" });
+      pullPairs("hotel_name", {
+        neighborhood: "neighborhood",
+        pic_url: "pic_url",
+      });
       pullPairs("name", { neighborhood: "neighborhood", pic_url: "pic_url" });
     } else if (key === "dining") {
       pullPairs("name", { vibe: "vibe", image_url: "image_url" });
     } else if (key === "transport") {
-      pullPairs("provider", { mode: "mode", estimated_total_cost: "estimated_total_cost" });
+      pullPairs("provider", {
+        mode: "mode",
+        estimated_total_cost: "estimated_total_cost",
+      });
     }
 
     return list;
@@ -712,7 +786,7 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
     activities: "activities",
     accommodation: "accommodations",
     dining: "dining",
-    transport: "transportation"
+    transport: "transportation",
   };
 
   for (const [key, colName] of Object.entries(collectionMap)) {
@@ -721,7 +795,9 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
       const docs = await collection.find({}).toArray();
 
       docs.forEach((doc) => {
-        const docKeys = Object.keys(doc).filter((k) => k !== "_id" && k !== "__v");
+        const docKeys = Object.keys(doc).filter(
+          (k) => k !== "_id" && k !== "__v",
+        );
         const tripKey = docKeys.find((k) => k.includes(tripId));
 
         // Keep strict trip binding where available.
@@ -760,9 +836,14 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
       // against malformed docs that still contain this agent category payload.
       if (results[key].length === 0) {
         docs.forEach((doc) => {
-          const docKeys = Object.keys(doc).filter((k) => k !== "_id" && k !== "__v");
+          const docKeys = Object.keys(doc).filter(
+            (k) => k !== "_id" && k !== "__v",
+          );
           const payload = normalizeText(docKeys.join(""));
-          if (!payload.includes(`agents.${key}`) && !payload.includes(`"category":"${key}"`)) {
+          if (
+            !payload.includes(`agents.${key}`) &&
+            !payload.includes(`"category":"${key}"`)
+          ) {
             return;
           }
 
@@ -781,7 +862,13 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, results, "Agent playground data fetched successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        results,
+        "Agent playground data fetched successfully",
+      ),
+    );
 });
 
 export {
@@ -801,4 +888,3 @@ export {
   updateTripFromN8n,
   getAgentPlaygroundData,
 };
-
