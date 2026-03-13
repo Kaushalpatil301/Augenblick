@@ -4,7 +4,10 @@ import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Message from "../models/Message.js";
 import mongoose from "mongoose";
-import { ensureWorkingItinerary, normalizeItinerary } from "../utils/itinerary-normalize.js";
+import {
+  ensureWorkingItinerary,
+  normalizeItinerary,
+} from "../utils/itinerary-normalize.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
@@ -207,7 +210,7 @@ const generateTripDraft = asyncHandler(async (req, res) => {
     "- mainDestination must be the final destination or ending place mentioned in the prompt.",
     "- Do not put origin or mainDestination inside destinations.",
     "- If the user does not specify dates, choose realistic future dates.",
-    "- If the user does not specify a budget, infer a sensible USD budget.",
+    "- If the user does not specify a budget, infer a sensible INR budget.",
     "- Keep origin null if it is not mentioned.",
     "- Use mainDestination for the final or primary destination.",
     "- Put intermediate stops only in destinations.",
@@ -316,7 +319,7 @@ const createTrip = asyncHandler(async (req, res) => {
     const webhookBody = {
       query,
       budget: Number(budget),
-      currency: "USD",
+      currency: "INR",
       tripId: trip._id.toString(),
       callbackUrl: `${serverUrl}/api/v1/trips/${trip._id}/n8n-callback`,
     };
@@ -1161,19 +1164,58 @@ const getTripActivities = asyncHandler(async (req, res) => {
   if (!trip) {
     throw new ApiError(404, "Trip not found or you are not a member");
   }
-  const trip_id=trip.itinerary.trip_id;
-  const collection_activities = mongoose.connection.db.collection("activities");
-  const collection_accomodations = mongoose.connection.db.collection("accomodations");
-  const collection_dining = mongoose.connection.db.collection("dining");
-  const collection_transport = mongoose.connection.db.collection("transportation");
 
-  const activities = await collection_activities.find({ trip_id: trip_id }).toArray();
-  const accomodations = await collection_accomodations.find({ trip_id: trip_id }).toArray();
-  const dining = await collection_dining.find({ trip_id: trip_id }).toArray();
-  const transport = await collection_transport.find({ trip_id: trip_id }).toArray();
+  // n8n/agent collections are inconsistent: they may store either `trip_id`
+  // or `tripId`, and values can be strings or ObjectIds.
+  const tripRefSet = new Set(
+    [tripId, trip?._id?.toString?.(), trip?.itinerary?.trip_id]
+      .filter(Boolean)
+      .map((value) => String(value).trim())
+      .filter(Boolean),
+  );
+
+  const tripRefs = Array.from(tripRefSet);
+  const objectIdRefs = tripRefs
+    .filter((value) => mongoose.Types.ObjectId.isValid(value))
+    .map((value) => new mongoose.Types.ObjectId(value));
+
+  const tripQuery = {
+    $or: [
+      { trip_id: { $in: tripRefs } },
+      { tripId: { $in: tripRefs } },
+      ...(objectIdRefs.length
+        ? [
+            { trip_id: { $in: objectIdRefs } },
+            { tripId: { $in: objectIdRefs } },
+          ]
+        : []),
+    ],
+  };
+
+  const collection_activities = mongoose.connection.db.collection("activities");
+  const collection_accomodations =
+    mongoose.connection.db.collection("accomodations");
+  const collection_dining = mongoose.connection.db.collection("dining");
+  const collection_transport =
+    mongoose.connection.db.collection("transportation");
+
+  const activities = await collection_activities.find(tripQuery).toArray();
+  const accomodations = await collection_accomodations
+    .find(tripQuery)
+    .toArray();
+  const dining = await collection_dining.find(tripQuery).toArray();
+  console.log(dining)
+  const transport = await collection_transport.find(tripQuery).toArray();
+
   return res
     .status(200)
-    .json(new ApiResponse(200, {activities, accomodations, dining, transport}, "Activities fetched successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        { activities, accomodations, dining, transport },
+        "Activities fetched successfully",
+      ),
+    );
 });
 
 const assertTripMember = (trip, userId) => {
@@ -1209,7 +1251,8 @@ const voteItineraryItem = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
   const userId = req.user._id;
   const entityType = req.body?.entityType;
-  const entityId = typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
+  const entityId =
+    typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
   const value = Number(req.body?.value);
 
   if (!["slot", "day", "base"].includes(entityType)) {
@@ -1248,28 +1291,33 @@ const voteItineraryItem = asyncHandler(async (req, res) => {
   await trip.save();
 
   const score = Object.values(next).reduce((sum, v) => sum + Number(v || 0), 0);
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { entityType, entityId, score, myVote: next[userKey] || 0 },
-      "Vote saved",
-    ),
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { entityType, entityId, score, myVote: next[userKey] || 0 },
+        "Vote saved",
+      ),
+    );
 });
 
 const createItineraryChange = asyncHandler(async (req, res) => {
   const { tripId } = req.params;
   const userId = req.user._id;
   const entityType = req.body?.entityType;
-  const entityId = typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
+  const entityId =
+    typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
   const patch = req.body?.patch;
-  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  const message =
+    typeof req.body?.message === "string" ? req.body.message.trim() : "";
 
   if (!["slot", "day", "base"].includes(entityType)) {
     throw new ApiError(400, "Invalid entityType");
   }
   if (!entityId) throw new ApiError(400, "entityId is required");
-  if (!patch || typeof patch !== "object") throw new ApiError(400, "patch must be an object");
+  if (!patch || typeof patch !== "object")
+    throw new ApiError(400, "patch must be an object");
 
   const trip = await Trip.findById(tripId);
   if (!trip) throw new ApiError(404, "Trip not found");
@@ -1293,7 +1341,8 @@ const createItineraryChange = asyncHandler(async (req, res) => {
   trip.markModified("itineraryChangeRequests");
   await trip.save();
 
-  const created = trip.itineraryChangeRequests[trip.itineraryChangeRequests.length - 1];
+  const created =
+    trip.itineraryChangeRequests[trip.itineraryChangeRequests.length - 1];
   return res
     .status(201)
     .json(new ApiResponse(201, created, "Change request created"));
@@ -1319,17 +1368,24 @@ const decideItineraryChange = asyncHandler(async (req, res) => {
   ensureWorkingItinerary(trip);
   const change = trip.itineraryChangeRequests?.id?.(changeId);
   if (!change) throw new ApiError(404, "Change request not found");
-  if (change.status !== "open") throw new ApiError(409, "Change request already decided");
+  if (change.status !== "open")
+    throw new ApiError(409, "Change request already decided");
 
   if (accept) {
     const working = trip.itineraryWorking;
     if (!working) throw new ApiError(409, "No working itinerary to modify");
 
     if (change.entityType === "base") {
-      if (!working.base_accommodation?.base_id || working.base_accommodation.base_id !== change.entityId) {
+      if (
+        !working.base_accommodation?.base_id ||
+        working.base_accommodation.base_id !== change.entityId
+      ) {
         throw new ApiError(404, "Base accommodation not found");
       }
-      working.base_accommodation = { ...working.base_accommodation, ...change.patch };
+      working.base_accommodation = {
+        ...working.base_accommodation,
+        ...change.patch,
+      };
     } else if (change.entityType === "day") {
       const day = findDayById(working, change.entityId);
       if (!day) throw new ApiError(404, "Day not found");
@@ -1370,7 +1426,8 @@ const finalizeItinerary = asyncHandler(async (req, res) => {
   }
 
   ensureWorkingItinerary(trip);
-  if (!trip.itineraryWorking) throw new ApiError(409, "No itinerary to finalize");
+  if (!trip.itineraryWorking)
+    throw new ApiError(409, "No itinerary to finalize");
 
   trip.itineraryFinal = trip.itineraryWorking;
   trip.itineraryIsFinal = true;
@@ -1379,7 +1436,9 @@ const finalizeItinerary = asyncHandler(async (req, res) => {
   trip.markModified("itineraryFinal");
   await trip.save();
 
-  return res.status(200).json(new ApiResponse(200, trip, "Itinerary finalized"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, trip, "Itinerary finalized"));
 });
 
 const unfinalizeItinerary = asyncHandler(async (req, res) => {
@@ -1400,7 +1459,9 @@ const unfinalizeItinerary = asyncHandler(async (req, res) => {
   trip.itineraryFinalizedBy = null;
   await trip.save();
 
-  return res.status(200).json(new ApiResponse(200, trip, "Itinerary unfinalized"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, trip, "Itinerary unfinalized"));
 });
 
 const chatItineraryWithGemini = asyncHandler(async (req, res) => {
@@ -1433,10 +1494,12 @@ const chatItineraryWithGemini = asyncHandler(async (req, res) => {
     '  "updatedItinerary": { /* THE COMPLETE, UPDATED ITINERARY JSON matching the exact same schema structure as the input */ },',
     '  "explanation": "A friendly message explaining to the user exactly what was changed and why based on their request."',
     "}",
-    "Do not include any markdown formatting, or text outside the JSON block."
+    "Do not include any markdown formatting, or text outside the JSON block.",
   ].join("\n");
 
-  const baseItinerary = trip.itineraryIsFinal ? trip.itineraryFinal : trip.itineraryWorking;
+  const baseItinerary = trip.itineraryIsFinal
+    ? trip.itineraryFinal
+    : trip.itineraryWorking;
   const inputJson = JSON.stringify(baseItinerary || {}, null, 2);
 
   const response = await fetch(
@@ -1461,7 +1524,7 @@ const chatItineraryWithGemini = asyncHandler(async (req, res) => {
           responseMimeType: "application/json",
         },
       }),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -1476,7 +1539,9 @@ const chatItineraryWithGemini = asyncHandler(async (req, res) => {
   }
 
   const parsedItinerary = parsedResponse.updatedItinerary;
-  const explanation = parsedResponse.explanation || "I've updated your itinerary based on your request!";
+  const explanation =
+    parsedResponse.explanation ||
+    "I've updated your itinerary based on your request!";
 
   trip.itineraryWorking = parsedItinerary;
   trip.markModified("itineraryWorking");
@@ -1488,11 +1553,17 @@ const chatItineraryWithGemini = asyncHandler(async (req, res) => {
 
   await trip.save();
 
-  return res.status(200).json(new ApiResponse(200, { 
-    itineraryWorking: parsedItinerary, 
-    itineraryFinal: trip.itineraryIsFinal ? parsedItinerary : undefined,
-    explanation 
-  }, "Itinerary updated by AI"));
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        itineraryWorking: parsedItinerary,
+        itineraryFinal: trip.itineraryIsFinal ? parsedItinerary : undefined,
+        explanation,
+      },
+      "Itinerary updated by AI",
+    ),
+  );
 });
 
 export {

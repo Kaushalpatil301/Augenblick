@@ -365,7 +365,7 @@ export default function CreateTrip({
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const res=await createTrip({
+      const res = await createTrip({
         ...form,
         budget: Number(form.budget),
         origin: origin || undefined,
@@ -457,7 +457,7 @@ export default function CreateTrip({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="budget">Estimated Budget ($)</Label>
+              <Label htmlFor="budget">Estimated Budget (INR)</Label>
               <Input
                 id="budget"
                 name="budget"

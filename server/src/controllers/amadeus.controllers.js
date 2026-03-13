@@ -165,7 +165,7 @@ const getHotelOffers = asyncHandler(async (req, res) => {
     checkOutDate,
     adults: String(adults),
     roomQuantity: "1",
-    currency: "USD",
+    currency: "INR",
     bestRateOnly: "true",
   });
 
@@ -464,7 +464,7 @@ const getFlightOffers = asyncHandler(async (req, res) => {
     departureDate,
     adults: String(adults),
     max: "10",
-    currencyCode: "USD",
+    currencyCode: "INR",
   });
 
   const url = `${AMADEUS_BASE}/v2/shopping/flight-offers?${params.toString()}`;

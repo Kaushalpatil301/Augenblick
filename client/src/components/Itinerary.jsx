@@ -102,7 +102,7 @@ export default function Itinerary({ trip, currentUserId, onTripUpdated }) {
         ? `${nightsCount} night${nightsCount === 1 ? "" : "s"}`
         : undefined;
 
-    const currency = itinerary?.currency?.trim() || "USD";
+    const currency = itinerary?.currency?.trim() || "INR";
 
     return { daysLabel, nightsLabel, currency };
   }, [

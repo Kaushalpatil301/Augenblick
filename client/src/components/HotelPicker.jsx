@@ -12,7 +12,7 @@ import {
   Loader2,
   Hotel,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Check,
   ChevronRight,
   X,
@@ -141,7 +141,7 @@ export default function HotelPicker({ trip, onAdd, onClose }) {
       latitude: selectedHotel.geoCode?.latitude,
       longitude: selectedHotel.geoCode?.longitude,
       priceTotal: offer?.price?.total || "",
-      priceCurrency: offer?.price?.currency || "USD",
+      priceCurrency: offer?.price?.currency || "INR",
       checkIn: checkIn ? new Date(checkIn) : null,
       checkOut: checkOut ? new Date(checkOut) : null,
     });
@@ -418,7 +418,7 @@ export default function HotelPicker({ trip, onAdd, onClose }) {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-lg text-blue-700 flex items-center gap-0.5">
-                          <DollarSign size={14} />
+                          <IndianRupee size={14} />
                           {offer.price?.total}
                         </span>
                         <span className="text-xs text-gray-400">

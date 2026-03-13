@@ -5,7 +5,7 @@ import CreateTrip from "../components/CreateTrip";
 import {
   MapPin,
   CalendarDays,
-  DollarSign,
+  IndianRupee,
   Users,
   LogOut,
   Trash2,
@@ -88,7 +88,9 @@ export default function Trips() {
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-4xl font-bold font-['Playfair_Display'] text-[#2C2C2C] mb-2">My Trips</h2>
+            <h2 className="text-4xl font-bold font-['Playfair_Display'] text-[#2C2C2C] mb-2">
+              My Trips
+            </h2>
             <p className="text-[#6D4C41] text-lg font-medium">
               Your shared travel workspaces
             </p>
@@ -97,7 +99,9 @@ export default function Trips() {
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-[#6D4C41]">Loading trips...</div>
+          <div className="text-center py-20 text-[#6D4C41]">
+            Loading trips...
+          </div>
         ) : trips.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-[14px] border border-[#E5E7EB] shadow-sm max-w-2xl mx-auto">
             <p className="text-[#6D4C41] text-lg mb-6">
@@ -116,10 +120,13 @@ export default function Trips() {
                 <h3 className="font-bold text-2xl font-['Playfair_Display'] text-[#2C2C2C] truncate group-hover:text-[#2E7D32] transition-colors mb-4 pr-1">
                   {trip.name}
                 </h3>
-                
+
                 <div className="space-y-3 text-base text-[#6D4C41] flex-grow">
                   <div className="flex items-start gap-3">
-                    <MapPin size={18} className="text-[#2E7D32] mt-0.5 shrink-0" />
+                    <MapPin
+                      size={18}
+                      className="text-[#2E7D32] mt-0.5 shrink-0"
+                    />
                     {trip.destinations?.length > 0 ? (
                       <span className="leading-snug">
                         {trip.destinations
@@ -132,7 +139,7 @@ export default function Trips() {
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <CalendarDays
                       size={18}
@@ -142,30 +149,38 @@ export default function Trips() {
                       {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
-                    <DollarSign size={18} className="text-[#2E7D32] shrink-0" />
-                    <span className="font-medium">Budget: ${trip.budget.toLocaleString()}</span>
+                    <IndianRupee
+                      size={18}
+                      className="text-[#2E7D32] shrink-0"
+                    />
+                    <span className="font-medium">
+                      Budget: ₹{trip.budget.toLocaleString()}
+                    </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <Users size={18} className="text-[#F4A261] shrink-0" />
                     <span>
-                      {trip.members.length} Explorer{trip.members.length !== 1 ? "s" : ""}
+                      {trip.members.length} Explorer
+                      {trip.members.length !== 1 ? "s" : ""}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="mt-6 pt-4 border-t border-[#E5E7EB] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-[#F5F5F0] text-[#6D4C41] flex items-center justify-center text-[10px] font-bold">
-                       {trip.createdBy?.username ? trip.createdBy.username[0].toUpperCase() : 'U'}
+                      {trip.createdBy?.username
+                        ? trip.createdBy.username[0].toUpperCase()
+                        : "U"}
                     </div>
                     <span className="text-xs text-[#6D4C41] font-medium">
                       {trip.createdBy?.username}
                     </span>
                   </div>
-                  
+
                   {trip.createdBy?._id === currentUserId ? (
                     <button
                       onClick={(e) => handleDeleteTrip(e, trip._id)}

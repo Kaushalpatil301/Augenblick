@@ -21,7 +21,7 @@ import { fetchWikipediaInfo } from "../lib/wikiCache";
 import {
   MapPin,
   CalendarDays,
-  DollarSign,
+  IndianRupee,
   Users,
   Plus,
   ArrowLeft,
@@ -789,7 +789,7 @@ export default function TripDetails() {
                       Budget
                     </p>
                     <p className="text-3xl md:text-4xl font-bold flex items-center gap-1 font-['Lato']">
-                      ${trip.budget.toLocaleString()}
+                      ₹{trip.budget.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -1026,7 +1026,7 @@ export default function TripDetails() {
                             </p>
                             {attr.cost !== undefined && attr.cost > 0 && (
                               <span className="text-xs font-bold text-[#2E7D32] bg-[#2E7D32]/10 px-2 py-1 rounded border border-[#2E7D32]/20 whitespace-nowrap">
-                                {attr.currency || trip.currency || "USD"}{" "}
+                                {attr.currency || trip.currency || "INR"}{" "}
                                 {attr.cost}
                               </span>
                             )}
@@ -1087,7 +1087,7 @@ export default function TripDetails() {
                             {acc.price_per_night !== undefined &&
                               acc.price_per_night !== null && (
                                 <span className="text-[11px] font-bold text-[#2E7D32] bg-[#2E7D32]/10 px-2 py-1 rounded border border-[#2E7D32]/20 whitespace-nowrap">
-                                  {acc.currency || trip.currency || "USD"}{" "}
+                                  {acc.currency || trip.currency || "INR"}{" "}
                                   {acc.price_per_night}/night
                                 </span>
                               )}
@@ -1181,7 +1181,7 @@ export default function TripDetails() {
                             {dine.avg_meal_cost !== undefined &&
                               dine.avg_meal_cost !== null && (
                                 <span className="text-[11px] font-bold text-[#E67E22] bg-[#E67E22]/10 px-2 py-1 rounded border border-[#E67E22]/20 whitespace-nowrap flex items-center gap-1">
-                                  <DollarSign size={12} /> {dine.avg_meal_cost}
+                                  <IndianRupee size={12} /> {dine.avg_meal_cost}
                                 </span>
                               )}
                           </div>
@@ -1253,7 +1253,7 @@ export default function TripDetails() {
                           </p>
                           {attr.cost !== undefined && attr.cost > 0 && (
                             <span className="text-xs font-bold text-[#2E7D32] bg-[#2E7D32]/10 px-2 py-1 rounded border border-[#2E7D32]/20 whitespace-nowrap">
-                              {attr.currency || trip.currency || "USD"}{" "}
+                              {attr.currency || trip.currency || "INR"}{" "}
                               {attr.cost}
                             </span>
                           )}
@@ -1301,7 +1301,7 @@ export default function TripDetails() {
                           {acc.price_per_night !== undefined &&
                             acc.price_per_night !== null && (
                               <span className="text-[11px] font-bold text-[#2E7D32] bg-[#2E7D32]/10 px-2 py-1 rounded border border-[#2E7D32]/20 whitespace-nowrap">
-                                {acc.currency || trip.currency || "USD"}{" "}
+                                {acc.currency || trip.currency || "INR"}{" "}
                                 {acc.price_per_night}/night
                               </span>
                             )}
@@ -1360,7 +1360,7 @@ export default function TripDetails() {
                           {trans.estimated_cost !== undefined &&
                             trans.estimated_cost !== null && (
                               <p className="text-xs font-bold text-[#2E7D32] mt-1 bg-[#2E7D32]/10 px-2 py-0.5 rounded border border-[#2E7D32]/20">
-                                {trans.currency || trip.currency || "USD"}{" "}
+                                {trans.currency || trip.currency || "INR"}{" "}
                                 {trans.estimated_cost}
                               </p>
                             )}
@@ -1381,7 +1381,7 @@ export default function TripDetails() {
                           {dine.avg_meal_cost !== undefined &&
                             dine.avg_meal_cost !== null && (
                               <span className="text-[11px] font-bold text-[#E67E22] bg-[#E67E22]/10 px-2 py-1 rounded border border-[#E67E22]/20 whitespace-nowrap flex items-center gap-1">
-                                <DollarSign size={12} /> {dine.avg_meal_cost}
+                                <IndianRupee size={12} /> {dine.avg_meal_cost}
                               </span>
                             )}
                         </div>
@@ -1610,7 +1610,7 @@ export default function TripDetails() {
                         )}
                         {attr.cost > 0 && (
                           <span className="text-[10px] font-bold text-[#2E7D32] mt-1 inline-block">
-                            {attr.currency || "USD"} {attr.cost}
+                            {attr.currency || "INR"} {attr.cost}
                           </span>
                         )}
                       </div>
