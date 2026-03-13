@@ -43,6 +43,10 @@ const registerUser = asyncHandler(async (req, res) => {
     username,
     password,
     phone,
+    avatar: {
+      url: `https://i.pravatar.cc/150?u=${encodeURIComponent(username)}`,
+      localPath: "",
+    },
   });
 
   const createdUser = await User.findById(user._id).select(
@@ -274,6 +278,34 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password has been changed successfully."));
 });
 
+const updateProfile = asyncHandler(async (req, res) => {
+  const { username, email, phone, avatarUrl } = req.body;
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (username) user.username = username;
+  if (email) user.email = email;
+  if (phone) user.phone = phone;
+  if (avatarUrl) {
+    user.avatar = { url: avatarUrl, localPath: "" };
+  }
+
+  await user.save({ validateBeforeSave: false });
+
+  const updatedUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: updatedUser }, "Profile updated successfully"),
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -282,4 +314,5 @@ export {
   refreshAccessToken,
   resetForgotPassword,
   changeCurrentPassword,
+  updateProfile,
 };

@@ -11,7 +11,7 @@ const userSchema = new Schema(
         localPath: String,
       },
       default: {
-        url: `https://placehold.co/100x100`,
+        url: `https://i.pravatar.cc/150?u=default`,
         localPath: "",
       },
     },

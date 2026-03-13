@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from "react";
 import FriendsList from "../components/FriendsList";
 import UserSearch from "../components/UserSearch";
 import FriendRequests from "../components/FriendRequests";
@@ -6,7 +7,7 @@ import Trips from "./Trips";
 import TripDetails from "./TripDetails";
 import DashboardHome from "./DashboardHome";
 import { Button } from "../components/ui/button";
-import { Map, ListOrdered, Users, Plane, Lock } from "lucide-react";
+import { Map, Users, Plane, Lock, LogOut, User, Pencil, RefreshCw, X, Check } from "lucide-react";
 import VoiceChat from "../components/VoiceChat";
 import FinalizedTrips from "./FinalizedTrips";
 import FinalizedItinerary from "./FinalizedItinerary";
@@ -19,14 +20,93 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
+import { logoutUser, updateProfile } from "../api/auth";
+
+function getRandomAvatar(seed) {
+  return `https://i.pravatar.cc/150?u=${encodeURIComponent(seed || Date.now())}`;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({ username: "", email: "", phone: "" });
+  const [previewAvatar, setPreviewAvatar] = useState("");
+  const dropdownRef = useRef(null);
 
-  const handleLogout=async () => {
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("user"));
+      const user = stored?.data?.user || stored?.user || stored;
+      if (user) {
+        setCurrentUser(user);
+        setEditForm({ username: user.username || "", email: user.email || "", phone: user.phone || "" });
+        setPreviewAvatar(user.avatar?.url || getRandomAvatar(user.username));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+        setEditing(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch { /* best-effort */ }
+    localStorage.removeItem("user");
     localStorage.removeItem("token");
     navigate("/login");
-  }
+  };
+
+  const handleRandomizeAvatar = () => {
+    setPreviewAvatar(getRandomAvatar(Date.now()));
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await updateProfile({
+        username: editForm.username,
+        email: editForm.email,
+        phone: editForm.phone,
+        avatarUrl: previewAvatar,
+      });
+      const updatedUser = res.data?.data?.user;
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+        // Persist to localStorage
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        if (stored?.data?.user) {
+          stored.data.user = updatedUser;
+        } else if (stored?.user) {
+          stored.user = updatedUser;
+        } else {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+        localStorage.setItem("user", JSON.stringify(stored));
+      }
+      setEditing(false);
+    } catch (err) {
+      console.error("Failed to update profile", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const avatarUrl = currentUser?.avatar?.url || previewAvatar || getRandomAvatar("guest");
+  const displayName = currentUser?.username || "User";
+
   return (
     <div className="min-h-screen bg-[#F5F5F0] font-['Lato'] text-[#2C2C2C]">
       {/* Top Navigation */}
@@ -86,9 +166,136 @@ export default function Dashboard() {
               <CreateTrip onTripCreated={() => navigate("/dashboard/trips")} />
               <UserSearch />
               <FriendRequests />
-              <Button onClick={handleLogout} variant="outline" className="border-[#E5E7EB] text-[#6D4C41] hover:bg-[#F5F5F0]">
-                Logout
-              </Button>
+
+              {/* ── Profile Avatar Dropdown ── */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => { setDropdownOpen((v) => !v); setEditing(false); }}
+                  className="w-9 h-9 rounded-full border-2 border-[#2E7D32]/30 hover:border-[#2E7D32] transition-colors overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/40"
+                  title={displayName}
+                >
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover rounded-full bg-[#F5F5F0]"
+                    onError={(e) => { e.target.src = `https://i.pravatar.cc/150?u=${displayName}`; }}
+                  />
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-xl border border-[#E5E7EB] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Profile Header */}
+                    <div className="bg-gradient-to-r from-[#2E7D32]/10 to-[#F4A261]/10 px-5 py-4 flex items-center gap-3">
+                      <div className="relative group">
+                        <img
+                          src={editing ? previewAvatar : avatarUrl}
+                          alt={displayName}
+                          className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover bg-[#F5F5F0]"
+                          onError={(e) => { e.target.src = `https://i.pravatar.cc/150?u=${displayName}`; }}
+                        />
+                        {editing && (
+                          <button
+                            onClick={handleRandomizeAvatar}
+                            className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#F4A261] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#e8944f] transition-colors"
+                            title="Randomize avatar"
+                          >
+                            <RefreshCw size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#2C2C2C] font-['Playfair_Display'] truncate">
+                          {displayName}
+                        </p>
+                        <p className="text-xs text-[#6D4C41]/70 font-['Lato'] truncate">
+                          {currentUser?.email || ""}
+                        </p>
+                      </div>
+                      {!editing && (
+                        <button
+                          onClick={() => {
+                            setEditing(true);
+                            setEditForm({
+                              username: currentUser?.username || "",
+                              email: currentUser?.email || "",
+                              phone: currentUser?.phone || "",
+                            });
+                            setPreviewAvatar(avatarUrl);
+                          }}
+                          className="p-1.5 rounded-lg bg-white/80 text-[#6D4C41] hover:bg-white transition-colors"
+                          title="Edit profile"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Edit Form */}
+                    {editing && (
+                      <div className="px-5 py-4 space-y-3 border-t border-[#E5E7EB]">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Username</label>
+                          <input
+                            type="text"
+                            value={editForm.username}
+                            onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
+                            className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Email</label>
+                          <input
+                            type="email"
+                            value={editForm.email}
+                            onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                            className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider font-semibold text-[#6D4C41]/60 font-['Lato']">Phone</label>
+                          <input
+                            type="tel"
+                            value={editForm.phone}
+                            onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                            className="w-full mt-1 px-3 py-1.5 text-sm font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            onClick={handleSaveProfile}
+                            disabled={saving}
+                            className="flex-1 bg-[#2E7D32] hover:bg-[#1b4b1e] text-white text-xs font-['Lato'] rounded-lg"
+                            size="sm"
+                          >
+                            <Check size={14} className="mr-1" />
+                            {saving ? "Saving..." : "Save"}
+                          </Button>
+                          <Button
+                            onClick={() => setEditing(false)}
+                            variant="outline"
+                            className="flex-1 border-[#E5E7EB] text-[#6D4C41] hover:bg-[#F5F5F0] text-xs font-['Lato'] rounded-lg"
+                            size="sm"
+                          >
+                            <X size={14} className="mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Logout */}
+                    <div className="border-t border-[#E5E7EB]">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2.5 px-5 py-3 text-sm font-medium font-['Lato'] text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut size={16} />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </nav>
         </div>

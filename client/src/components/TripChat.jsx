@@ -113,19 +113,22 @@ export default function TripChat({ tripId, members, onNewMessage }) {
   };
 
   return (
-    <div className="flex flex-col h-[600px] w-full rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[500px]">
-      <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="text-indigo-600" size={20} />
-          <h3 className="font-semibold text-gray-800">Trip Chat</h3>
+    <div className="flex flex-col h-[600px] w-full rounded-xl border border-[#E5E7EB] bg-[#F5F5F0] shadow-md overflow-hidden min-h-[500px]">
+      {/* ── Header ── */}
+      <div className="px-5 py-3.5 border-b border-[#E5E7EB] bg-white flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <MessageSquare className="text-[#6D4C41]" size={20} />
+          <h3 className="font-semibold text-[#2C2C2C] font-['Playfair_Display']">
+            Trip Chat
+          </h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
+          <span className="text-xs font-medium font-['Lato'] px-2.5 py-1 rounded-full bg-[#2E7D32]/10 text-[#2E7D32]">
             {members?.length || 0} online
           </span>
           <button
             onClick={handleJoinVoice}
-            className="p-1.5 ml-1 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200"
+            className="p-1.5 ml-1 bg-[#2E7D32]/10 text-[#2E7D32] hover:bg-[#2E7D32]/20 rounded-xl transition-colors border border-[#2E7D32]/20"
             title="Join Voice Chat (New Tab)"
           >
             <Mic size={16} />
@@ -133,11 +136,11 @@ export default function TripChat({ tripId, members, onNewMessage }) {
         </div>
       </div>
 
+      {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, idx) => {
           if (msg.isSystem) {
             const isEndedMsg = msg.text?.toLowerCase().includes("ended");
-            // For "started" messages, check if any later message in the list ended the session
             const isSessionOver =
               isEndedMsg ||
               messages
@@ -153,22 +156,22 @@ export default function TripChat({ tripId, members, onNewMessage }) {
                 className="flex justify-center my-4"
               >
                 <div
-                  className={`flex flex-col items-center justify-center gap-2 px-6 py-3 rounded-3xl border shadow-sm max-w-[85%] ${
+                  className={`flex flex-col items-center justify-center gap-2 px-6 py-3 rounded-2xl border shadow-sm max-w-[85%] ${
                     isSessionOver
-                      ? "bg-gray-50 border-gray-200"
-                      : "bg-indigo-50 border-indigo-100"
+                      ? "bg-white border-[#E5E7EB]"
+                      : "bg-[#2E7D32]/5 border-[#2E7D32]/20"
                   }`}
                 >
                   <div
-                    className={`flex items-center gap-2 text-sm font-medium ${
-                      isSessionOver ? "text-gray-600" : "text-indigo-800"
+                    className={`flex items-center gap-2 text-sm font-medium font-['Lato'] ${
+                      isSessionOver ? "text-[#6D4C41]" : "text-[#2E7D32]"
                     }`}
                   >
                     <div
                       className={`p-1.5 rounded-full ${
                         isSessionOver
-                          ? "bg-gray-200 text-gray-500"
-                          : "bg-indigo-100 text-indigo-600 animate-pulse"
+                          ? "bg-[#E5E7EB] text-[#6D4C41]"
+                          : "bg-[#2E7D32]/15 text-[#2E7D32] animate-pulse"
                       }`}
                     >
                       {isSessionOver ? <MicOff size={14} /> : <Mic size={14} />}
@@ -176,7 +179,7 @@ export default function TripChat({ tripId, members, onNewMessage }) {
                     <span>{msg.text}</span>
                   </div>
                   {isSessionOver ? (
-                    <span className="text-xs font-semibold px-4 py-1.5 bg-gray-300 text-gray-600 rounded-full cursor-default">
+                    <span className="text-xs font-semibold font-['Lato'] px-4 py-1.5 bg-[#E5E7EB] text-[#6D4C41] rounded-full cursor-default">
                       Ended
                     </span>
                   ) : (
@@ -184,13 +187,13 @@ export default function TripChat({ tripId, members, onNewMessage }) {
                       onClick={() =>
                         window.open(`/dashboard/voice/${tripId}`, "_blank")
                       }
-                      className="text-xs font-semibold px-4 py-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-sm"
+                      className="text-xs font-semibold font-['Lato'] px-4 py-1.5 bg-[#F4A261] text-white rounded-full hover:bg-[#e8944f] transition-colors shadow-sm"
                     >
                       Join
                     </button>
                   )}
                   {msg.createdAt && (
-                    <span className="text-[10px] text-gray-400 mt-1">
+                    <span className="text-[10px] text-[#6D4C41]/50 mt-1 font-['Lato']">
                       {new Date(msg.createdAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -222,7 +225,7 @@ export default function TripChat({ tripId, members, onNewMessage }) {
               {!isMe && (
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={senderInfo?.avatar?.url} />
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-[#6D4C41]/10 text-[#6D4C41] font-['Lato'] text-xs">
                     {senderInfo?.username?.[0]?.toUpperCase() || (
                       <Bot size={14} />
                     )}
@@ -230,21 +233,21 @@ export default function TripChat({ tripId, members, onNewMessage }) {
                 </Avatar>
               )}
               <div
-                className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow-sm ${
+                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm shadow-sm font-['Lato'] ${
                   isMe
-                    ? "bg-indigo-600 text-white rounded-br-sm"
-                    : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                    ? "bg-[#2E7D32] text-white rounded-br-sm"
+                    : "bg-white text-[#2C2C2C] rounded-bl-sm border border-[#E5E7EB]"
                 }`}
               >
                 {!isMe && (
-                  <p className="text-[10px] font-medium text-indigo-600 mb-1">
+                  <p className="text-[10px] font-semibold text-[#F4A261] mb-1 font-['Lato']">
                     {senderInfo?.username || "Agentic AI"}
                   </p>
                 )}
                 <p>{msg.text}</p>
                 {msg.createdAt && (
                   <p
-                    className={`text-[10px] mt-1 ${isMe ? "text-indigo-200" : "text-gray-400"}`}
+                    className={`text-[10px] mt-1 ${isMe ? "text-white/60" : "text-[#6D4C41]/50"}`}
                   >
                     {new Date(msg.createdAt).toLocaleTimeString([], {
                       hour: "2-digit",
@@ -259,20 +262,21 @@ export default function TripChat({ tripId, members, onNewMessage }) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* ── Input ── */}
       <form
         onSubmit={handleSendMessage}
-        className="p-3 bg-white border-t border-gray-100 flex gap-2"
+        className="p-3 bg-white border-t border-[#E5E7EB] flex gap-2"
       >
         <Input
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Type a message..."
-          className="bg-gray-50 border-gray-200 focus-visible:ring-indigo-500 rounded-full"
+          className="bg-[#F5F5F0] border-[#E5E7EB] focus-visible:ring-[#2E7D32] rounded-full font-['Lato'] text-[#2C2C2C] placeholder:text-[#6D4C41]/40"
         />
         <Button
           type="submit"
           size="icon"
-          className="rounded-full bg-indigo-600 hover:bg-indigo-700 shrink-0 text-white"
+          className="rounded-full bg-[#2E7D32] hover:bg-[#1b4b1e] shrink-0 text-white"
         >
           <Send size={16} />
         </Button>

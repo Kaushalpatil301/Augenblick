@@ -1204,7 +1204,6 @@ const getTripActivities = asyncHandler(async (req, res) => {
     .find(tripQuery)
     .toArray();
   const dining = await collection_dining.find(tripQuery).toArray();
-  console.log(dining)
   const transport = await collection_transport.find(tripQuery).toArray();
 
   return res

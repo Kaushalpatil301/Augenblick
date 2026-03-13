@@ -18,6 +18,10 @@ export const loginUser = (credentials) => {
   return api.post("/auth/login", credentials);
 };
 
-// export const logoutUser = () => {
-//   return api.post("/auth/logout");
-// };
+export const logoutUser = () => {
+  return api.post("/auth/logout");
+};
+
+export const updateProfile = (data) => {
+  return api.patch("/auth/profile", data);
+};
