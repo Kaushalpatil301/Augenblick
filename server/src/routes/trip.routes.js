@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  generateTripDraft,
   createTrip,
   getUserTrips,
   getTripById,
@@ -24,6 +25,7 @@ router.post("/:tripId/n8n-callback", updateTripFromN8n);
 
 router.use(verifyJWT);
 
+router.post("/draft", generateTripDraft);
 router.post("/", createTrip);
 router.get("/", getUserTrips);
 router.get("/invitations", getTripInvitations);

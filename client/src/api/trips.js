@@ -1,6 +1,8 @@
 import api from "./axios";
 
 export const createTrip = (tripData) => api.post("trips", tripData);
+export const generateTripDraft = (prompt, currentLocation) =>
+  api.post("trips/draft", { prompt, currentLocation });
 export const getUserTrips = () => api.get("trips");
 export const getTripById = (tripId) => api.get(`trips/${tripId}`);
 export const updateTripDetails = (tripId, type, data) =>
