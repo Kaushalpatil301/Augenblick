@@ -93,7 +93,7 @@ const FILTER_CONFIG = [
   },
 ];
 
-export default function TripMap({ trip }) {
+export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
   const [filters, setFilters] = useState({
     origin: true,
     destination: true,
@@ -256,7 +256,7 @@ export default function TripMap({ trip }) {
       )}
 
       {/* Map */}
-      <div className="h-[520px] rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      <div className={`${mapHeightClass} rounded-xl overflow-hidden border border-gray-200 shadow-sm`}>
         <MapContainer
           center={[20, 0]}
           zoom={3}

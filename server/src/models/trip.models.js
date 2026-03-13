@@ -12,6 +12,28 @@ const transportSchema = new Schema(
   { _id: false },
 );
 
+const itineraryChangeRequestSchema = new Schema(
+  {
+    entityType: {
+      type: String,
+      enum: ["slot", "day", "base"],
+      required: true,
+    },
+    entityId: { type: String, required: true, trim: true },
+    patch: { type: Schema.Types.Mixed, required: true, default: {} },
+    message: { type: String, default: "", trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    status: {
+      type: String,
+      enum: ["open", "accepted", "rejected"],
+      default: "open",
+    },
+    decidedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    decidedAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+
 const tripSchema = new Schema(
   {
     name: {
@@ -110,6 +132,37 @@ const tripSchema = new Schema(
     itinerary: {
       type: Schema.Types.Mixed,
       default: null,
+    },
+    itineraryWorking: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    itineraryFinal: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    itineraryFinalizedAt: {
+      type: Date,
+      default: null,
+    },
+    itineraryFinalizedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    itineraryIsFinal: {
+      type: Boolean,
+      default: false,
+    },
+    itineraryVotes: {
+      // Map of entityId -> Map(userId -> voteValue)
+      type: Map,
+      of: Schema.Types.Mixed,
+      default: {},
+    },
+    itineraryChangeRequests: {
+      type: [itineraryChangeRequestSchema],
+      default: [],
     },
     status: {
       type: String,

@@ -16,6 +16,12 @@ import {
   leaveTrip,
   deleteTrip,
   getTripActivities,
+  voteItineraryItem,
+  createItineraryChange,
+  decideItineraryChange,
+  finalizeItinerary,
+  unfinalizeItinerary,
+  chatItineraryWithGemini,
 } from "../controllers/trip.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -41,5 +47,16 @@ router.get("/:tripId/messages", getTripMessages);
 router.post("/:tripId/leave", leaveTrip);
 router.delete("/:tripId", deleteTrip);
 router.get("/:tripId/activities", getTripActivities);
+
+// Collaborative itinerary
+router.post("/:tripId/itinerary/vote", voteItineraryItem);
+router.post("/:tripId/itinerary/changes", createItineraryChange);
+router.post(
+  "/:tripId/itinerary/changes/:changeId/decision",
+  decideItineraryChange,
+);
+router.post("/:tripId/itinerary/finalize", finalizeItinerary);
+router.post("/:tripId/itinerary/unfinalize", unfinalizeItinerary);
+router.post("/:tripId/ai/chat", chatItineraryWithGemini);
 
 export default router;

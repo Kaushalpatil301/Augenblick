@@ -22,3 +22,17 @@ export const getTripMessages = (tripId) => api.get(`/trips/${tripId}/messages`);
 export const leaveTrip = (tripId) => api.post(`trips/${tripId}/leave`);
 export const deleteTrip = (tripId) => api.delete(`trips/${tripId}`);
 export const getTripActivities = (tripId) => api.get(`trips/${tripId}/activities`);
+
+// Collaborative itinerary
+export const voteItineraryItem = (tripId, payload) =>
+  api.post(`trips/${tripId}/itinerary/vote`, payload);
+export const createItineraryChange = (tripId, payload) =>
+  api.post(`trips/${tripId}/itinerary/changes`, payload);
+export const decideItineraryChange = (tripId, changeId, accept) =>
+  api.post(`trips/${tripId}/itinerary/changes/${changeId}/decision`, { accept });
+export const finalizeItinerary = (tripId) =>
+  api.post(`trips/${tripId}/itinerary/finalize`);
+export const unfinalizeItinerary = (tripId) =>
+  api.post(`trips/${tripId}/itinerary/unfinalize`);
+export const chatItineraryWithGemini = (tripId, message) =>
+  api.post(`trips/${tripId}/ai/chat`, { message });
