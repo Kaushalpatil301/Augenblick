@@ -17,6 +17,7 @@ import HotelPicker from "../components/HotelPicker";
 import AttractionPicker from "../components/AttractionPicker";
 import FlightPicker from "../components/FlightPicker";
 import TripMap from "../components/TripMap";
+import CursorOverlay from "../components/CursorOverlay";
 import { fetchWikipediaInfo } from "../lib/wikiCache";
 import {
   MapPin,
@@ -185,6 +186,7 @@ export default function TripDetails() {
   const [pickingHotel, setPickingHotel] = useState(false);
   const [pickingAttraction, setPickingAttraction] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserName, setCurrentUserName] = useState(null);
   const [placeImages, setPlaceImages] = useState({});
   const [placeInfo, setPlaceInfo] = useState({});
   const [expandedPlaces, setExpandedPlaces] = useState({});
@@ -197,6 +199,7 @@ export default function TripDetails() {
       const storedUser = JSON.parse(localStorage.getItem("user"));
       const user = storedUser?.data?.user || storedUser?.user || storedUser;
       setCurrentUserId(user?._id);
+      setCurrentUserName(user?.username || user?.name || "Anonymous");
     } catch {}
   }, []);
 
@@ -593,6 +596,11 @@ export default function TripDetails() {
 
   return (
     <div className="p-6 md:p-10 font-['Lato'] text-[#2C2C2C] bg-[#F5F5F0] min-h-[calc(100vh-4rem)] relative md:text-lg">
+      <CursorOverlay
+        tripId={trip._id || tripId}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+      />
       {/* Background textures */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl mix-blend-overlay pointer-events-none" />
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-[#2E7D32]/5 rounded-full blur-3xl pointer-events-none" />
@@ -1045,7 +1053,18 @@ export default function TripDetails() {
                               Duration: {attr.duration}
                             </p>
                           )}
-                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + (attr._id || i), { state: { product: attr } })}>Book Now</Button>
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                            onClick={() =>
+                              navigate(
+                                "/dashboard/book/activity/" + (attr._id || i),
+                                { state: { product: attr } },
+                              )
+                            }
+                          >
+                            Book Now
+                          </Button>
                         </div>
                       ))}
                       {activities.length > 2 && (
@@ -1097,7 +1116,19 @@ export default function TripDetails() {
                             <MapPin size={12} />{" "}
                             {acc.neighborhood || acc.address}
                           </p>
-                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + (acc._id || i), { state: { product: acc } })}>Book Now</Button>
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                            onClick={() =>
+                              navigate(
+                                "/dashboard/book/accommodation/" +
+                                  (acc._id || i),
+                                { state: { product: acc } },
+                              )
+                            }
+                          >
+                            Book Now
+                          </Button>
                         </div>
                       ))}
                       {accommodations.length > 2 && (
@@ -1141,7 +1172,18 @@ export default function TripDetails() {
                           <p className="text-sm font-medium font-['Lato'] text-[#2C2C2C]">
                             {trans.description || trans.details}
                           </p>
-                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + (trans._id || i), { state: { product: trans } })}>Book Now</Button>
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                            onClick={() =>
+                              navigate(
+                                "/dashboard/book/transport/" + (trans._id || i),
+                                { state: { product: trans } },
+                              )
+                            }
+                          >
+                            Book Now
+                          </Button>
                         </div>
                       ))}
                       {transport.length > 2 && (
@@ -1191,7 +1233,18 @@ export default function TripDetails() {
                           <p className="text-xs text-[#6D4C41] mt-1 font-semibold">
                             {dine.vibe || dine.cuisine}
                           </p>
-                          <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + (dine._id || i), { state: { product: dine } })}>Book Now</Button>
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                            onClick={() =>
+                              navigate(
+                                "/dashboard/book/dining/" + (dine._id || i),
+                                { state: { product: dine } },
+                              )
+                            }
+                          >
+                            Book Now
+                          </Button>
                         </div>
                       ))}
                       {dining.length > 2 && (
@@ -1289,7 +1342,18 @@ export default function TripDetails() {
                             {attr.match_reason}
                           </p>
                         )}
-                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + (attr._id || i), { state: { product: attr } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate(
+                              "/dashboard/book/activity/" + (attr._id || i),
+                              { state: { product: attr } },
+                            )
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))}
                   {/* Accommodations */}
@@ -1330,7 +1394,18 @@ export default function TripDetails() {
                             </p>
                           </div>
                         )}
-                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + (acc._id || i), { state: { product: acc } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate(
+                              "/dashboard/book/accommodation/" + (acc._id || i),
+                              { state: { product: acc } },
+                            )
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))}
                   {/* Transport */}
@@ -1371,7 +1446,18 @@ export default function TripDetails() {
                               </p>
                             )}
                         </div>
-                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + (trans._id || i), { state: { product: trans } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate(
+                              "/dashboard/book/transport/" + (trans._id || i),
+                              { state: { product: trans } },
+                            )
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))}
                   {/* Dining */}
@@ -1411,7 +1497,18 @@ export default function TripDetails() {
                             {dine.must_try_dish}
                           </p>
                         )}
-                        <Button size="sm" className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + (dine._id || i), { state: { product: dine } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-4 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate(
+                              "/dashboard/book/dining/" + (dine._id || i),
+                              { state: { product: dine } },
+                            )
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))}
                 </div>
@@ -1621,7 +1718,17 @@ export default function TripDetails() {
                             {attr.currency || "INR"} {attr.cost}
                           </span>
                         )}
-                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/activity/" + attr._id, { state: { product: attr } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate("/dashboard/book/activity/" + attr._id, {
+                              state: { product: attr },
+                            })
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))
                   )}
@@ -1792,7 +1899,18 @@ export default function TripDetails() {
                             Nights: {acc.nights_count}
                           </span>
                         )}
-                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/accommodation/" + acc._id, { state: { product: acc } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate(
+                              "/dashboard/book/accommodation/" + acc._id,
+                              { state: { product: acc } },
+                            )
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))
                   )}
@@ -1960,7 +2078,17 @@ export default function TripDetails() {
                             Travel Time: {trans.travel_time}
                           </p>
                         )}
-                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/transport/" + trans._id, { state: { product: trans } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate("/dashboard/book/transport/" + trans._id, {
+                              state: { product: trans },
+                            })
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))
                   )}
@@ -2126,7 +2254,17 @@ export default function TripDetails() {
                             Must Try: {dine.must_try_dish}
                           </p>
                         )}
-                        <Button size="sm" className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white" onClick={() => navigate("/dashboard/book/dining/" + dine._id, { state: { product: dine } })}>Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="mt-3 w-full bg-[#2E7D32] hover:bg-[#1b4b1e] text-white"
+                          onClick={() =>
+                            navigate("/dashboard/book/dining/" + dine._id, {
+                              state: { product: dine },
+                            })
+                          }
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     ))
                   )}
