@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Message from "../models/Message.js";
 import mongoose from "mongoose";
+import { ensureWorkingItinerary, normalizeItinerary } from "../utils/itinerary-normalize.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
@@ -572,6 +573,12 @@ const getTripById = asyncHandler(async (req, res) => {
   }
   // ──────────────────────────────────────────────────────────────────────
 
+  // Ensure itineraryWorking exists and has stable ids (migration-on-read).
+  const normalizedChanged = ensureWorkingItinerary(trip);
+  if (normalizedChanged) {
+    await trip.save();
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, trip, "Trip fetched successfully"));
@@ -879,9 +886,16 @@ const updateTripFromN8n = asyncHandler(async (req, res) => {
   // Support "days" (The Itinerary format)
   if (rawData.days || (rawData.data && rawData.data.days)) {
     const itData = rawData.days || rawData.data;
-    trip.itinerary = itData;
+    const normalized = normalizeItinerary(itData, tripId);
+    trip.itinerary = normalized;
     trip.markModified("itinerary");
     trip.itineraryStatus = "done";
+
+    // Keep working itinerary in sync unless user already finalized.
+    if (!trip.itineraryIsFinal) {
+      trip.itineraryWorking = normalized;
+      trip.markModified("itineraryWorking");
+    }
   }
 
   // ── 2. APPLY UPDATES ─────────────────────────────────────────────────────
@@ -1107,6 +1121,325 @@ const getAgentPlaygroundData = asyncHandler(async (req, res) => {
     );
 });
 
+const assertTripMember = (trip, userId) => {
+  const uid = userId?.toString?.();
+  if (!uid) return false;
+  return Array.isArray(trip?.members)
+    ? trip.members.some((m) => m?.toString?.() === uid)
+    : false;
+};
+
+const assertTripCreator = (trip, userId) => {
+  const uid = userId?.toString?.();
+  if (!uid) return false;
+  return trip?.createdBy?.toString?.() === uid;
+};
+
+const findDayById = (itinerary, dayId) => {
+  if (!itinerary?.days || !Array.isArray(itinerary.days)) return null;
+  return itinerary.days.find((d) => d?.day_id === dayId) || null;
+};
+
+const findSlotById = (itinerary, slotId) => {
+  if (!itinerary?.days || !Array.isArray(itinerary.days)) return null;
+  for (const day of itinerary.days) {
+    if (!Array.isArray(day?.slots)) continue;
+    const slot = day.slots.find((s) => s?.slot_id === slotId);
+    if (slot) return { day, slot };
+  }
+  return null;
+};
+
+const voteItineraryItem = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+  const entityType = req.body?.entityType;
+  const entityId = typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
+  const value = Number(req.body?.value);
+
+  if (!["slot", "day", "base"].includes(entityType)) {
+    throw new ApiError(400, "Invalid entityType");
+  }
+  if (!entityId) throw new ApiError(400, "entityId is required");
+  if (![1, -1, 0].includes(value)) {
+    throw new ApiError(400, "value must be 1, -1, or 0");
+  }
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+  if (!assertTripMember(trip, userId)) {
+    throw new ApiError(403, "You are not a member of this trip");
+  }
+  if (trip.itineraryIsFinal) {
+    throw new ApiError(409, "Itinerary is finalized");
+  }
+
+  // Ensure working itinerary exists (for stable IDs).
+  ensureWorkingItinerary(trip);
+
+  const voteKey = `${entityType}:${entityId}`;
+  const existing = trip.itineraryVotes?.get?.(voteKey) ?? {};
+  const userKey = userId.toString();
+  const next = { ...(existing || {}) };
+
+  if (value === 0) {
+    delete next[userKey];
+  } else {
+    next[userKey] = value;
+  }
+
+  trip.itineraryVotes.set(voteKey, next);
+  trip.markModified("itineraryVotes");
+  await trip.save();
+
+  const score = Object.values(next).reduce((sum, v) => sum + Number(v || 0), 0);
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { entityType, entityId, score, myVote: next[userKey] || 0 },
+      "Vote saved",
+    ),
+  );
+});
+
+const createItineraryChange = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+  const entityType = req.body?.entityType;
+  const entityId = typeof req.body?.entityId === "string" ? req.body.entityId.trim() : "";
+  const patch = req.body?.patch;
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+
+  if (!["slot", "day", "base"].includes(entityType)) {
+    throw new ApiError(400, "Invalid entityType");
+  }
+  if (!entityId) throw new ApiError(400, "entityId is required");
+  if (!patch || typeof patch !== "object") throw new ApiError(400, "patch must be an object");
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+  if (!assertTripMember(trip, userId)) {
+    throw new ApiError(403, "You are not a member of this trip");
+  }
+  if (trip.itineraryIsFinal) {
+    throw new ApiError(409, "Itinerary is finalized");
+  }
+
+  ensureWorkingItinerary(trip);
+
+  trip.itineraryChangeRequests.push({
+    entityType,
+    entityId,
+    patch,
+    message,
+    createdBy: userId,
+    status: "open",
+  });
+  trip.markModified("itineraryChangeRequests");
+  await trip.save();
+
+  const created = trip.itineraryChangeRequests[trip.itineraryChangeRequests.length - 1];
+  return res
+    .status(201)
+    .json(new ApiResponse(201, created, "Change request created"));
+});
+
+const decideItineraryChange = asyncHandler(async (req, res) => {
+  const { tripId, changeId } = req.params;
+  const userId = req.user._id;
+  const accept = Boolean(req.body?.accept);
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+  if (!assertTripMember(trip, userId)) {
+    throw new ApiError(403, "You are not a member of this trip");
+  }
+  if (!assertTripCreator(trip, userId)) {
+    throw new ApiError(403, "Only the trip creator can decide changes");
+  }
+  if (trip.itineraryIsFinal) {
+    throw new ApiError(409, "Itinerary is finalized");
+  }
+
+  ensureWorkingItinerary(trip);
+  const change = trip.itineraryChangeRequests?.id?.(changeId);
+  if (!change) throw new ApiError(404, "Change request not found");
+  if (change.status !== "open") throw new ApiError(409, "Change request already decided");
+
+  if (accept) {
+    const working = trip.itineraryWorking;
+    if (!working) throw new ApiError(409, "No working itinerary to modify");
+
+    if (change.entityType === "base") {
+      if (!working.base_accommodation?.base_id || working.base_accommodation.base_id !== change.entityId) {
+        throw new ApiError(404, "Base accommodation not found");
+      }
+      working.base_accommodation = { ...working.base_accommodation, ...change.patch };
+    } else if (change.entityType === "day") {
+      const day = findDayById(working, change.entityId);
+      if (!day) throw new ApiError(404, "Day not found");
+      Object.assign(day, change.patch);
+    } else if (change.entityType === "slot") {
+      const found = findSlotById(working, change.entityId);
+      if (!found) throw new ApiError(404, "Slot not found");
+      Object.assign(found.slot, change.patch);
+    }
+
+    trip.itineraryWorking = normalizeItinerary(working, tripId);
+    trip.markModified("itineraryWorking");
+
+    change.status = "accepted";
+  } else {
+    change.status = "rejected";
+  }
+
+  change.decidedBy = userId;
+  change.decidedAt = new Date();
+  trip.markModified("itineraryChangeRequests");
+  await trip.save();
+
+  return res.status(200).json(new ApiResponse(200, change, "Decision saved"));
+});
+
+const finalizeItinerary = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+  if (!assertTripMember(trip, userId)) {
+    throw new ApiError(403, "You are not a member of this trip");
+  }
+  if (!assertTripCreator(trip, userId)) {
+    throw new ApiError(403, "Only the trip creator can finalize");
+  }
+
+  ensureWorkingItinerary(trip);
+  if (!trip.itineraryWorking) throw new ApiError(409, "No itinerary to finalize");
+
+  trip.itineraryFinal = trip.itineraryWorking;
+  trip.itineraryIsFinal = true;
+  trip.itineraryFinalizedAt = new Date();
+  trip.itineraryFinalizedBy = userId;
+  trip.markModified("itineraryFinal");
+  await trip.save();
+
+  return res.status(200).json(new ApiResponse(200, trip, "Itinerary finalized"));
+});
+
+const unfinalizeItinerary = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const userId = req.user._id;
+
+  const trip = await Trip.findById(tripId);
+  if (!trip) throw new ApiError(404, "Trip not found");
+  if (!assertTripMember(trip, userId)) {
+    throw new ApiError(403, "You are not a member of this trip");
+  }
+  if (!assertTripCreator(trip, userId)) {
+    throw new ApiError(403, "Only the trip creator can unfinalize");
+  }
+
+  trip.itineraryIsFinal = false;
+  trip.itineraryFinalizedAt = null;
+  trip.itineraryFinalizedBy = null;
+  await trip.save();
+
+  return res.status(200).json(new ApiResponse(200, trip, "Itinerary unfinalized"));
+});
+
+const chatItineraryWithGemini = asyncHandler(async (req, res) => {
+  const { tripId } = req.params;
+  const { message } = req.body;
+  const userId = req.user._id;
+
+  if (!message) {
+    throw new ApiError(400, "Message is required");
+  }
+
+  const trip = await Trip.findOne({ _id: tripId, members: userId });
+  if (!trip) {
+    throw new ApiError(404, "Trip not found or you are not a member");
+  }
+
+  ensureWorkingItinerary(trip);
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new ApiError(500, "GEMINI_API_KEY is not configured");
+  }
+
+  const instruction = [
+    "You are an AI travel assistant. The user wants to modify their current itinerary.",
+    "Below is the current JSON representation of the itinerary.",
+    "Please apply the user's requested changes to this JSON.",
+    "Output ONLY a valid JSON object matching this exact schema:",
+    "{",
+    '  "updatedItinerary": { /* THE COMPLETE, UPDATED ITINERARY JSON matching the exact same schema structure as the input */ },',
+    '  "explanation": "A friendly message explaining to the user exactly what was changed and why based on their request."',
+    "}",
+    "Do not include any markdown formatting, or text outside the JSON block."
+  ].join("\n");
+
+  const baseItinerary = trip.itineraryIsFinal ? trip.itineraryFinal : trip.itineraryWorking;
+  const inputJson = JSON.stringify(baseItinerary || {}, null, 2);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `${instruction}\n\nCurrent Itinerary JSON:\n${inputJson}\n\nUser Request: ${message}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new ApiError(502, `Gemini request failed: ${errorText}`);
+  }
+
+  const payload = await response.json();
+  const parsedResponse = parseJsonObject(extractGeminiText(payload));
+  if (!parsedResponse || !parsedResponse.updatedItinerary) {
+    throw new ApiError(502, "Gemini returned an invalid itinerary JSON format");
+  }
+
+  const parsedItinerary = parsedResponse.updatedItinerary;
+  const explanation = parsedResponse.explanation || "I've updated your itinerary based on your request!";
+
+  trip.itineraryWorking = parsedItinerary;
+  trip.markModified("itineraryWorking");
+
+  if (trip.itineraryIsFinal) {
+    trip.itineraryFinal = parsedItinerary;
+    trip.markModified("itineraryFinal");
+  }
+
+  await trip.save();
+
+  return res.status(200).json(new ApiResponse(200, { 
+    itineraryWorking: parsedItinerary, 
+    itineraryFinal: trip.itineraryIsFinal ? parsedItinerary : undefined,
+    explanation 
+  }, "Itinerary updated by AI"));
+});
+
 export {
   generateTripDraft,
   createTrip,
@@ -1124,4 +1457,10 @@ export {
   deleteTrip,
   updateTripFromN8n,
   getAgentPlaygroundData,
+  voteItineraryItem,
+  createItineraryChange,
+  decideItineraryChange,
+  finalizeItinerary,
+  unfinalizeItinerary,
+  chatItineraryWithGemini,
 };

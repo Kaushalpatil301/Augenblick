@@ -68,6 +68,7 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
 import TripChat from "../components/TripChat";
 import Itinerary from "../components/Itinerary";
+import AIAssistant from "../components/AIAssistant";
 import {
   MapContainer,
   TileLayer,
@@ -1693,7 +1694,7 @@ export default function TripDetails() {
           <DialogHeader>
             <DialogTitle>Trip Itinerary</DialogTitle>
           </DialogHeader>
-          <Itinerary trip={trip}/>
+          <Itinerary trip={trip} currentUserId={currentUserId} onTripUpdated={fetchTrip} />
         </DialogContent>
       </Dialog>
 
@@ -1830,6 +1831,7 @@ export default function TripDetails() {
         </DialogContent>
       </Dialog>
       </div>
+      <AIAssistant tripId={trip._id} onItineraryUpdated={fetchTrip} />
     </div>
   );
 }
