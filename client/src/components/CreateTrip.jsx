@@ -154,6 +154,7 @@ export default function CreateTrip({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [drawnRoute, setDrawnRoute] = useState([]);
   const searchTimeout = useRef(null);
   const mapRef = useRef(null);
   const open = controlledOpen ?? internalOpen;
@@ -358,6 +359,32 @@ export default function CreateTrip({
   if (hasCoordinates(destination))
     routePoints.push([destination.lat, destination.lng]);
 
+  useEffect(() => {
+    if (routePoints.length < 2) {
+      setDrawnRoute([]);
+      return;
+    }
+    const fetchRoute = async () => {
+      try {
+        const coordsStr = routePoints.map((p) => `${p[1]},${p[0]}`).join(";");
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
+        );
+        const data = await res.json();
+        if (data.routes && data.routes.length > 0) {
+          const coords = data.routes[0].geometry.coordinates; // [[lng, lat]]
+          setDrawnRoute(coords.map((c) => [c[1], c[0]]));
+        } else {
+          setDrawnRoute(routePoints);
+        }
+      } catch (err) {
+        setDrawnRoute(routePoints);
+      }
+    };
+    fetchRoute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(routePoints)]);
+
   const allFitPoints = [
     ...(hasCoordinates(origin) ? [[origin.lat, origin.lng]] : []),
     ...(hasCoordinates(destination)
@@ -541,7 +568,7 @@ export default function CreateTrip({
                 <CircleDot size={14} />
                 Add Stop
               </Button>
-              
+
               <div className="h-6 w-px bg-[#E5E7EB] mx-1 hidden sm:block"></div>
 
               {/* Eco & Safety Route Toggles */}
@@ -722,15 +749,14 @@ export default function CreateTrip({
                 ))}
 
                 {/* Route polyline */}
-                {routePoints.length >= 2 && (
+                {drawnRoute.length >= 2 && (
                   <Polyline
-                    positions={routePoints}
-                    pathOptions={{
-                      color: "#3b82f6",
-                      weight: 3,
-                      dashArray: "8 6",
-                      opacity: 0.7,
-                    }}
+                    positions={drawnRoute}
+                      pathOptions={{
+                        color: "#3b82f6",
+                        weight: 4,
+                        opacity: 0.8,
+                      }}
                   />
                 )}
               </MapContainer>
@@ -809,3 +835,4 @@ export default function CreateTrip({
     </Dialog>
   );
 }
+

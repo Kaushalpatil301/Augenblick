@@ -21,6 +21,24 @@ const createEmojiIcon = (emoji, size = 32) => {
   });
 };
 
+// Helper to create map pin markers
+const createMapPin = (color, label = "") => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 36px; height: 36px; filter: drop-shadow(0px 3px 3px rgba(0,0,0,0.4));">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+    <circle cx="12" cy="10" r="3" fill="white"></circle>
+  </svg>`;
+  return L.divIcon({
+    html: `<div style="position: relative; display: flex; align-items: center; justify-content: center;">
+             ${svg}
+             ${label ? `<span style="position: absolute; top: 6px; font-size: 11px; font-weight: bold; color: #1f2937;">${label}</span>` : ""}
+           </div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+    className: "custom-pin",
+  });
+};
+
 // Auto-fit bounds when points change
 function AutoFitBounds({ points }) {
   const map = useMap();
@@ -94,6 +112,7 @@ const FILTER_CONFIG = [
 ];
 
 export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
+  const [drawnRoute, setDrawnRoute] = useState([]);
   const [filters, setFilters] = useState({
     origin: true,
     destination: true,
@@ -127,7 +146,31 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
       pts.push([trip.mainDestination.lat, trip.mainDestination.lng]);
     return pts;
   }, [trip]);
-
+  // Fetch actual route via OSRM
+  useEffect(() => {
+    if (routePoints.length < 2) {
+      setDrawnRoute([]);
+      return;
+    }
+    const fetchRoute = async () => {
+      try {
+        const coordsStr = routePoints.map((p) => `${p[1]},${p[0]}`).join(";");
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
+        );
+        const data = await res.json();
+        if (data.routes && data.routes.length > 0) {
+          const coords = data.routes[0].geometry.coordinates; // [[lng, lat]]
+          setDrawnRoute(coords.map((c) => [c[1], c[0]]));
+        } else {
+          setDrawnRoute(routePoints);
+        }
+      } catch (err) {
+        setDrawnRoute(routePoints);
+      }
+    };
+    fetchRoute();
+  }, [routePoints]);
   // All points for auto-fit
   const fitPoints = useMemo(() => {
     const pts = [];
@@ -256,7 +299,9 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
       )}
 
       {/* Map */}
-      <div className={`${mapHeightClass} rounded-xl overflow-hidden border border-gray-200 shadow-sm`}>
+      <div
+        className={`${mapHeightClass} rounded-xl overflow-hidden border border-gray-200 shadow-sm`}
+      >
         <MapContainer
           center={[20, 0]}
           zoom={3}
@@ -273,7 +318,7 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
           {filters.origin && trip?.origin?.lat && trip?.origin?.lng && (
             <Marker
               position={[trip.origin.lat, trip.origin.lng]}
-              icon={createEmojiIcon("🟢", 40)}
+              icon={createMapPin("#22c55e", "")}
             >
               <Popup>
                 <div className="text-sm font-semibold">
@@ -292,7 +337,7 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
             trip?.mainDestination?.lng && (
               <Marker
                 position={[trip.mainDestination.lat, trip.mainDestination.lng]}
-                icon={createEmojiIcon("🔴", 40)}
+                icon={createMapPin("#ef4444", "")}
               >
                 <Popup>
                   <div className="text-sm font-semibold">
@@ -313,7 +358,7 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
                 <Marker
                   key={`stop-${idx}`}
                   position={[d.lat, d.lng]}
-                  icon={createEmojiIcon("🔵", 34)}
+                  icon={createMapPin("#3b82f6", String(idx + 1))}
                 >
                   <Popup>
                     <div className="text-sm font-semibold">
@@ -332,13 +377,7 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
           {/* Route Polyline — through all waypoints */}
           {filters.route && routePoints.length >= 2 && (
             <Polyline
-              positions={routePoints}
-              pathOptions={{
-                color: "#3b82f6",
-                weight: 3,
-                dashArray: "8 6",
-                opacity: 0.7,
-              }}
+              positions={drawnRoute.length >= 2 ? drawnRoute : routePoints} pathOptions={{ color: "#3b82f6", weight: 4, dashArray: drawnRoute.length >= 2 ? "none" : "8 6", opacity: 0.8, }}
             />
           )}
 
@@ -470,3 +509,6 @@ export default function TripMap({ trip, mapHeightClass = "h-[520px]" }) {
     </div>
   );
 }
+
+
+

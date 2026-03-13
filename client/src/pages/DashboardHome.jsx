@@ -345,7 +345,7 @@ export default function DashboardHome() {
                   name: "Santorini, Greece",
                   desc: "Whitewashed houses and stunning sunsets.",
                   image:
-                    "https://images.unsplash.com/photo-1570077188670-e3a8d69ac542?q=80&w=600&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?q=80&w=600&auto=format&fit=crop",
                 },
                 {
                   name: "Bali, Indonesia",
